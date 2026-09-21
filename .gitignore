@@ -1,0 +1,50 @@
+# Node dependencies
+node_modules/
+*/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Production Build outputs
+dist/
+client/dist/
+build/
+.vite/
+
+# SQLite Database & Cache files (keeps setup fresh for new installations)
+server/storage/database/*.sqlite
+server/storage/database/*.sqlite-shm
+server/storage/database/*.sqlite-wal
+!server/storage/database/.gitkeep
+!server/storage/database/.htaccess
+
+# User Uploaded Media
+server/storage/uploads/*
+!server/storage/uploads/.gitkeep
+!server/storage/uploads/.htaccess
+
+# Published Static Websites
+server/published/*
+!server/published/.gitkeep
+
+# Logs & Temporary Files
+*.log
+logs/
+server/storage/logs/
+*.tmp
+*.temp
+
+# Environment and Secret configs
+.env
+.env.local
+.env.*.local
+
+# OS & Editor Files
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace

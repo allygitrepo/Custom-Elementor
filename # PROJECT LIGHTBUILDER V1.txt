@@ -1,0 +1,1268 @@
+# PROJECT: LIGHTBUILDER V1
+
+## Lightweight Visual Website Builder
+
+Build a complete, production-ready, self-hosted visual website builder called:
+
+**LightBuilder**
+
+The application must allow a user to deploy the project to their own PHP-compatible hosting/server and then create, design, save, preview, and publish their own websites through a visual drag-and-drop editor.
+
+The project must use:
+
+* Frontend: React.js
+* Backend: PHP
+* Database: SQLite
+* API: REST API
+* Storage: Local filesystem
+* Authentication: PHP backend sessions/token-based authentication
+* Published website: Server-rendered/generated HTML/CSS/JS
+
+The project must NOT depend on WordPress, Elementor, Laravel, Node.js on the production server, MySQL, or any external SaaS service.
+
+The production server should only need:
+
+* PHP
+* SQLite support
+* Apache/Nginx
+* Basic filesystem write permissions
+
+The React application is built during development and the generated production assets are deployed to the server.
+
+---
+
+# 1. PRODUCT VISION
+
+The goal is to create a lightweight alternative to large website builders.
+
+The user should be able to:
+
+1. Deploy LightBuilder to their hosting.
+2. Open the LightBuilder dashboard.
+3. Create an account/admin user during first setup.
+4. Create a website/project.
+5. Open the visual builder.
+6. Drag widgets onto a canvas.
+7. Arrange containers and widgets.
+8. Edit text/images/buttons.
+9. Customize colors, typography, spacing, etc.
+10. Preview the website.
+11. Save the website.
+12. Publish the website.
+13. Open the published website through a public URL/domain.
+
+The experience should be:
+
+```text
+Deploy
+   ↓
+Setup
+   ↓
+Login
+   ↓
+Create Website
+   ↓
+Open Builder
+   ↓
+Drag & Drop
+   ↓
+Design
+   ↓
+Preview
+   ↓
+Publish
+   ↓
+Public Website
+```
+
+The application must feel like a real product, not a demo.
+
+---
+
+# 2. IMPORTANT ARCHITECTURE
+
+The root project structure MUST start with:
+
+```text
+LightBuilder/
+│
+├── client/
+│
+└── server/
+```
+
+Do not change this basic structure.
+
+Recommended architecture:
+
+```text
+LightBuilder/
+│
+├── client/
+│   ├── public/
+│   ├── src/
+│   │   ├── components/
+│   │   ├── editor/
+│   │   ├── widgets/
+│   │   ├── panels/
+│   │   ├── canvas/
+│   │   ├── dashboard/
+│   │   ├── pages/
+│   │   ├── hooks/
+│   │   ├── services/
+│   │   ├── store/
+│   │   ├── utils/
+│   │   ├── styles/
+│   │   ├── App.jsx
+│   │   └── main.jsx
+│   │
+│   ├── package.json
+│   └── vite.config.js
+│
+└── server/
+    ├── api/
+    ├── config/
+    ├── controllers/
+    ├── middleware/
+    ├── models/
+    ├── services/
+    ├── database/
+    ├── routes/
+    ├── renderer/
+    ├── storage/
+    ├── uploads/
+    ├── published/
+    ├── logs/
+    ├── index.php
+    └── .htaccess
+```
+
+You may improve internal organization, but keep `client` and `server` as the two primary roots.
+
+---
+
+# 3. TECHNOLOGY REQUIREMENTS
+
+## CLIENT
+
+Use:
+
+* React
+* Vite
+* React Router
+* JavaScript or JSX
+* CSS
+
+Prefer:
+
+* Native React state
+* Context API
+* Lightweight custom state management
+
+Do NOT introduce Redux unless genuinely required.
+
+Do NOT use a huge UI framework.
+
+Avoid unnecessary dependencies.
+
+The editor must be optimized for performance.
+
+---
+
+# 4. SERVER
+
+Use:
+
+* PHP 8.1+
+* PDO SQLite
+* REST API
+* JSON responses
+* PHP sessions or secure token authentication
+
+Do NOT use:
+
+* Laravel
+* Symfony
+* WordPress
+* CodeIgniter
+* MySQL
+
+The backend must remain lightweight.
+
+---
+
+# 5. DATABASE
+
+Use SQLite.
+
+Database location:
+
+```text
+server/storage/database/lightbuilder.sqlite
+```
+
+The database must NOT be publicly accessible.
+
+Protect:
+
+```text
+server/storage/
+```
+
+using server configuration and application architecture.
+
+Never expose the SQLite file directly through HTTP.
+
+---
+
+# 6. FIRST INSTALLATION / SETUP
+
+When the user visits:
+
+```text
+https://example.com/
+```
+
+or the configured LightBuilder URL for the first time, detect whether installation has been completed.
+
+If not:
+
+Show:
+
+```text
+LightBuilder Setup
+
+Welcome
+
+System Requirements
+✓ PHP
+✓ SQLite
+✓ Writable Storage
+✓ Required Extensions
+
+Create Administrator
+
+Name
+Email
+Password
+Confirm Password
+
+[Install LightBuilder]
+```
+
+After installation:
+
+```text
+Installation Complete
+
+[Go to Dashboard]
+```
+
+Create the first admin account.
+
+Never provide default passwords.
+
+---
+
+# 7. DEPLOYMENT MODEL
+
+The final application should be deployable to shared hosting.
+
+Typical deployment:
+
+```text
+public_html/
+│
+├── index.php
+├── .htaccess
+├── client-build/
+└── server/
+```
+
+However, structure the production build cleanly so that sensitive backend files are not directly exposed.
+
+Prefer:
+
+```text
+public_html/
+│
+├── index.php
+├── assets/
+├── api/
+├── published/
+└── ...
+```
+
+with backend application code outside public access where hosting permits.
+
+If shared hosting requires everything inside public_html, protect sensitive directories with `.htaccess`.
+
+Provide a production deployment guide explaining both:
+
+1. Apache/shared hosting
+2. VPS/Nginx deployment
+
+---
+
+# 8. REACT PRODUCTION BUILD
+
+The React app is used for:
+
+* Dashboard
+* Builder
+* Settings
+* Templates
+* Media manager
+
+During development:
+
+```bash
+npm run dev
+```
+
+For production:
+
+```bash
+npm run build
+```
+
+The resulting React build must be deployable without Node.js.
+
+Production server should only serve the generated static React assets.
+
+---
+
+# 9. API ARCHITECTURE
+
+Create a clean REST API.
+
+Example:
+
+```text
+/api/auth/login
+/api/auth/logout
+/api/auth/me
+
+/api/setup/status
+/api/setup/install
+
+/api/websites
+/api/websites/{id}
+
+/api/pages
+/api/pages/{id}
+
+/api/pages/{id}/save
+/api/pages/{id}/publish
+/api/pages/{id}/preview
+
+/api/templates
+/api/templates/{id}
+
+/api/media
+/api/media/upload
+/api/media/{id}
+
+/api/settings
+```
+
+Use JSON.
+
+Example response:
+
+```json
+{
+  "success": true,
+  "data": {}
+}
+```
+
+Error:
+
+```json
+{
+  "success": false,
+  "message": "Unable to save page."
+}
+```
+
+Use proper HTTP status codes.
+
+---
+
+# 10. AUTHENTICATION
+
+Implement:
+
+* Login
+* Logout
+* Current user
+* Password hashing
+* Session management
+* Protected API endpoints
+
+Use PHP:
+
+```php
+password_hash()
+password_verify()
+```
+
+Never store plain-text passwords.
+
+Protect against:
+
+* Session fixation
+* CSRF
+* Brute-force attempts
+* Unauthorized API access
+
+---
+
+# 11. USER MODEL
+
+V1 can have a simple user system.
+
+Table:
+
+```text
+users
+
+id
+name
+email
+password_hash
+role
+status
+created_at
+updated_at
+```
+
+Roles:
+
+```text
+admin
+user
+```
+
+For V1, the first administrator can have full access.
+
+Design the system so multi-user support can be expanded later.
+
+---
+
+# 12. WEBSITE / PROJECT MODEL
+
+A user can create websites.
+
+Example:
+
+```text
+My Websites
+
+Corporate Website
+Salon Website
+Portfolio Website
+Landing Page
+```
+
+Database:
+
+```text
+websites
+
+id
+user_id
+name
+slug
+domain
+status
+settings_json
+created_at
+updated_at
+```
+
+A website contains pages.
+
+---
+
+# 13. PAGE MODEL
+
+Database:
+
+```text
+pages
+
+id
+website_id
+title
+slug
+status
+content_json
+styles_css
+settings_json
+created_at
+updated_at
+published_at
+```
+
+Example:
+
+```text
+Website
+│
+├── Home
+├── About
+├── Services
+├── Portfolio
+└── Contact
+```
+
+---
+
+# 14. VISUAL BUILDER
+
+The visual editor is the most important component.
+
+Create:
+
+```text
+BuilderLayout
+```
+
+with:
+
+```text
+TopToolbar
+LeftSidebar
+Canvas
+RightSidebar
+BottomToolbar
+```
+
+Layout:
+
+```text
+┌───────────────────────────────────────────────────────────────┐
+│ LOGO │ Undo │ Redo │ Desktop │ Tablet │ Mobile │ Preview Save│
+├───────────────┬──────────────────────────────┬───────────────┤
+│               │                              │               │
+│   ELEMENTS    │                              │   SETTINGS    │
+│               │          CANVAS              │               │
+│ Search        │                              │ Content       │
+│               │      Website Preview         │ Style         │
+│ Layout        │                              │ Advanced      │
+│ Basic         │                              │               │
+│ Media         │                              │               │
+│ Advanced      │                              │               │
+│               │                              │               │
+└───────────────┴──────────────────────────────┴───────────────┘
+```
+
+Create an original UI.
+
+Do NOT copy Elementor's exact interface or branding.
+
+---
+
+# 15. CANVAS ENGINE
+
+Build a real visual canvas.
+
+The canvas must support:
+
+* Drag
+* Drop
+* Select
+* Move
+* Reorder
+* Nest
+* Duplicate
+* Delete
+* Copy
+* Paste
+* Inline editing
+* Responsive editing
+
+No fake interactions.
+
+Everything must actually update the underlying React state.
+
+---
+
+# 16. COMPONENT TREE
+
+The page must be represented internally as a component tree.
+
+Example:
+
+```json
+{
+  "id": "root",
+  "type": "container",
+  "settings": {},
+  "children": [
+    {
+      "id": "element_001",
+      "type": "heading",
+      "settings": {
+        "text": "Welcome"
+      },
+      "children": []
+    },
+    {
+      "id": "element_002",
+      "type": "button",
+      "settings": {
+        "text": "Get Started",
+        "url": "/contact"
+      },
+      "children": []
+    }
+  ]
+}
+```
+
+Every element must have:
+
+```text
+id
+type
+settings
+children
+```
+
+Generate unique IDs.
+
+Never duplicate IDs.
+
+---
+
+# 17. ELEMENT TREE
+
+The internal tree must support:
+
+```text
+Container
+   ↓
+Container
+   ↓
+Heading
+Text
+Button
+```
+
+and:
+
+```text
+Container
+├── Container
+│   ├── Heading
+│   └── Text
+│
+└── Container
+    ├── Image
+    └── Button
+```
+
+Do not impose unnecessary depth restrictions.
+
+---
+
+# 18. WIDGET CATEGORIES
+
+V1 widgets:
+
+## Layout
+
+* Container
+* Spacer
+* Divider
+
+## Basic
+
+* Heading
+* Text
+* Image
+* Button
+* Icon
+* Icon Box
+* Image Box
+
+## Media
+
+* Video
+* Image Gallery
+
+## Interactive
+
+* Accordion
+* Tabs
+* Counter
+* Progress Bar
+
+## Advanced
+
+* Alert
+* Testimonial
+* HTML
+* Shortcode
+
+## WordPress-like Dynamic Content
+
+Since this is NOT WordPress, do not create fake WordPress widgets.
+
+Instead provide:
+
+* Text
+* Image
+* Button
+* HTML
+* Custom data in future versions
+
+Do not add unnecessary WordPress dependencies.
+
+---
+
+# 19. CONTAINER WIDGET
+
+Container settings:
+
+### Layout
+
+Direction:
+
+row
+column
+
+### Alignment
+
+start
+center
+end
+stretch
+
+### Justification
+
+start
+center
+end
+space-between
+space-around
+space-evenly
+
+### Gap
+
+px
+rem
+%
+
+### Width
+
+auto
+full
+custom
+
+### Height
+
+auto
+min-height
+custom
+
+### Spacing
+
+margin
+padding
+
+### Appearance
+
+background
+border
+radius
+shadow
+overflow
+
+### Advanced
+
+position
+z-index
+CSS class
+CSS ID
+
+---
+
+# 20. HEADING WIDGET
+
+Controls:
+
+Text
+
+HTML tag:
+
+H1
+H2
+H3
+H4
+H5
+H6
+div
+span
+
+Alignment
+
+Typography
+
+Color
+
+Link
+
+Responsive values.
+
+---
+
+# 21. TEXT WIDGET
+
+Support:
+
+Bold
+Italic
+Underline
+Links
+Ordered list
+Unordered list
+Alignment
+
+Keep the implementation lightweight.
+
+Sanitize HTML before storing/rendering.
+
+Never execute scripts entered into the text editor.
+
+---
+
+# 22. IMAGE WIDGET
+
+Controls:
+
+Image upload
+Image selection
+Alt text
+Link
+Open new tab
+Width
+Height
+Object fit
+Border
+Radius
+Shadow
+
+Use the LightBuilder media manager.
+
+---
+
+# 23. BUTTON WIDGET
+
+Controls:
+
+Text
+URL
+Target
+Rel
+
+Style:
+
+Background
+Text color
+Typography
+Padding
+Border
+Radius
+Shadow
+
+Hover:
+
+Background
+Text color
+Border
+
+---
+
+# 24. ICON WIDGET
+
+Do not bundle a massive icon library.
+
+Use lightweight SVG icons.
+
+Allow:
+
+Icon
+Size
+Color
+Alignment
+Link
+
+---
+
+# 25. VIDEO WIDGET
+
+Support:
+
+YouTube URL
+Vimeo URL
+Self-hosted video URL
+
+Controls:
+
+Aspect ratio
+Autoplay
+Muted
+Loop
+Controls
+
+Do not automatically load heavy video scripts when the widget isn't used.
+
+---
+
+# 26. IMAGE GALLERY
+
+Controls:
+
+Images
+Columns
+Gap
+Image size
+Border radius
+
+Responsive:
+
+Desktop columns
+Tablet columns
+Mobile columns
+
+---
+
+# 27. ACCORDION
+
+Support multiple items.
+
+Each item:
+
+Title
+Content
+Open/closed state
+
+Allow:
+
+Add item
+Delete item
+Reorder item
+
+---
+
+# 28. TABS
+
+Each tab:
+
+Title
+Content
+
+Allow:
+
+Add
+Delete
+Reorder
+
+Keep the implementation lightweight.
+
+---
+
+# 29. COUNTER
+
+Controls:
+
+Number
+Prefix
+Suffix
+Duration
+Typography
+Color
+
+Example:
+
+```text
+100+
+Projects Completed
+```
+
+---
+
+# 30. PROGRESS BAR
+
+Controls:
+
+Percentage
+Label
+Height
+Radius
+Background
+Progress color
+
+Animate on frontend.
+
+---
+
+# 31. TESTIMONIAL
+
+Controls:
+
+Name
+Role
+Photo
+Quote
+Rating
+
+---
+
+# 32. HTML WIDGET
+
+Allow custom HTML.
+
+Security requirements:
+
+* Never execute PHP
+* Never allow server-side code
+* Sanitize where appropriate
+* Clearly warn users that custom HTML can affect security
+
+---
+
+# 33. SHORTCODE-LIKE FEATURE
+
+Because this is standalone and not WordPress, do NOT pretend to support WordPress shortcodes.
+
+Instead create a future-compatible Embed/HTML system.
+
+V1 can provide:
+
+Custom HTML
+External Embed Code
+
+---
+
+# 34. LEFT SIDEBAR
+
+Sidebar should contain:
+
+Search widgets
+
+Categories:
+
+```text
+LAYOUT
+BASIC
+MEDIA
+INTERACTIVE
+ADVANCED
+```
+
+Each widget:
+
+Icon
+Name
+
+Example:
+
+```text
+BASIC
+
+┌──────────────┐
+│  H           │
+│ Heading      │
+└──────────────┘
+
+┌──────────────┐
+│  T           │
+│ Text         │
+└──────────────┘
+```
+
+Drag from sidebar.
+
+---
+
+# 35. RIGHT SETTINGS PANEL
+
+When nothing is selected:
+
+Show:
+
+"Select an element to edit"
+
+When selected:
+
+Tabs:
+
+```text
+Content
+Style
+Advanced
+```
+
+Controls should dynamically depend on the widget.
+
+---
+
+# 36. CONTROL SYSTEM
+
+Do NOT hardcode a completely separate settings UI for every widget.
+
+Create reusable controls:
+
+```text
+TextControl
+NumberControl
+ColorControl
+SelectControl
+ToggleControl
+SpacingControl
+TypographyControl
+BorderControl
+ShadowControl
+ImageControl
+URLControl
+ResponsiveControl
+```
+
+Then widgets define their controls.
+
+Example:
+
+```javascript
+{
+    type: "heading",
+    controls: [
+        {
+            name: "text",
+            control: "text",
+            label: "Heading"
+        },
+        {
+            name: "tag",
+            control: "select",
+            options: [...]
+        }
+    ]
+}
+```
+
+This is extremely important for maintainability.
+
+---
+
+# 37. RESPONSIVE SYSTEM
+
+Top toolbar:
+
+```text
+Desktop
+Tablet
+Mobile
+```
+
+Selected device changes the editing viewport.
+
+Settings can have responsive values.
+
+Example:
+
+```json
+{
+  "fontSize": {
+    "desktop": "48px",
+    "tablet": "36px",
+    "mobile": "28px"
+  }
+}
+```
+
+If tablet value is empty:
+
+inherit desktop.
+
+If mobile value exists:
+
+use mobile.
+
+---
+
+# 38. CANVAS BREAKPOINTS
+
+Default:
+
+Desktop:
+
+1200px
+
+Tablet:
+
+768px
+
+Mobile:
+
+375px
+
+Allow these to be configurable later.
+
+Do not hardcode published websites to these widths.
+
+---
+
+# 39. SELECTION SYSTEM
+
+When selecting an element:
+
+Show:
+
+* Border
+* Element label
+* Quick toolbar
+
+Toolbar:
+
+```text
+Move
+Edit
+Duplicate
+Copy
+Delete
+```
+
+When hovering:
+
+Show subtle outline.
+
+Do not make the interface visually noisy.
+
+---
+
+# 40. INLINE TEXT EDITING
+
+Heading and Text widgets should support direct canvas editing.
+
+Example:
+
+User clicks:
+
+"Welcome to our website"
+
+Text becomes editable.
+
+Changes update:
+
+React state
+Settings panel
+Undo history
+
+---
+
+# 41. DRAG DROP BE

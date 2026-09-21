@@ -1,0 +1,17 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Prevent direct access to sensitive PHP files
+    RewriteRule ^config/ - [F,L]
+    RewriteRule ^database/ - [F,L]
+    RewriteRule ^controllers/ - [F,L]
+    RewriteRule ^middleware/ - [F,L]
+    RewriteRule ^models/ - [F,L]
+    RewriteRule ^storage/ - [F,L]
+    RewriteRule ^logs/ - [F,L]
+
+    # Handle API and dynamic requests
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteRule ^ index.php [QSA,L]
+</IfModule>
