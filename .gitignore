@@ -1,4 +1,4 @@
-# Node dependencies
+# Dependencies
 node_modules/
 */node_modules/
 npm-debug.log*
@@ -12,28 +12,66 @@ client/dist/
 build/
 .vite/
 
-# SQLite Database & Cache files (keeps setup fresh for new installations)
-server/storage/database/*.sqlite
-server/storage/database/*.sqlite-shm
-server/storage/database/*.sqlite-wal
+# SQLite Database & Storage Files
+*.sqlite
+*.sqlite3
+*.db
+*.sqlite-shm
+*.sqlite-wal
+**/*.sqlite
+**/*.sqlite3
+**/*.db
+server/storage/database/*
 !server/storage/database/.gitkeep
 !server/storage/database/.htaccess
 
-# User Uploaded Media
+# User Uploaded Media (Images, Videos, Documents)
+server/uploads/*
+!server/uploads/.gitkeep
+!server/uploads/.htaccess
 server/storage/uploads/*
 !server/storage/uploads/.gitkeep
 !server/storage/uploads/.htaccess
+uploads/*
+!uploads/.gitkeep
+
+# Video and Audio Media Formats
+*.mp4
+*.mov
+*.avi
+*.webm
+*.mkv
+*.flv
+*.wmv
+*.m4v
+*.mp3
+*.wav
+*.ogg
+*.m4a
 
 # Published Static Websites
 server/published/*
 !server/published/.gitkeep
+published/*
+!published/.gitkeep
 
 # Logs & Temporary Files
 *.log
 logs/
-server/storage/logs/
+server/logs/*
+!server/logs/.gitkeep
+server/storage/logs/*
+!server/storage/logs/.gitkeep
 *.tmp
 *.temp
+*.bak
+*.swp
+
+# Prompts, Notes & Feature Text Files
+*.txt
+*prompt*.md
+*.prompt.md
+*.prompt
 
 # Environment and Secret configs
 .env
