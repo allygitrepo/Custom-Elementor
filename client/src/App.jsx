@@ -1,5 +1,5 @@
 import React from 'react';
-import { Routes, Route, Navigate, BrowserRouter } from 'react-router-dom';
+import { Routes, Route, Navigate, HashRouter } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import SetupPage from './pages/SetupPage';
 import LoginPage from './pages/LoginPage';
@@ -63,7 +63,7 @@ function AppRoutes() {
       <Route element={<DashboardLayout />}>
         <Route path="/" element={<WebsitesPage />} />
         <Route path="/websites" element={<WebsitesPage />} />
-        <Route path="/websites/:websiteId/pages" element={<PagesPage />} />
+        <Route path="/websites/:websiteId/pages" element={<Navigate to="/websites" replace />} />
         <Route path="/media" element={<MediaPage />} />
         <Route path="/templates" element={<TemplatesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
@@ -76,10 +76,10 @@ function AppRoutes() {
 
 export default function App() {
   return (
-    <BrowserRouter>
+    <HashRouter>
       <AuthProvider>
         <AppRoutes />
       </AuthProvider>
-    </BrowserRouter>
+    </HashRouter>
   );
 }

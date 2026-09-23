@@ -27,14 +27,22 @@ DirectoryIndex index.html index.php
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Route published uploads directly to uploads/ if needed
+    # 2. Route uploaded media (/uploads/* and published/*/uploads/*) directly to server/uploads/
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^published/([^/]+)/uploads/(.*)$ uploads/$2 [L]
+    RewriteRule ^published/([^/]+)/uploads/(.*)$ server/uploads/$2 [L]
 
     RewriteCond %{REQUEST_FILENAME} !-f
-    RewriteRule ^uploads/(.*)$ uploads/$1 [L]
+    RewriteRule ^server/published/([^/]+)/uploads/(.*)$ server/uploads/$2 [L]
 
-    # 3. Route all API requests (/api/*) to backend index.php
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^uploads/(.*)$ server/uploads/$1 [L]
+
+    # 3. Route all API requests (/api/*) to backend index.php (supports both server/ subfolder and root deployments)
+    RewriteCond %{DOCUMENT_ROOT}%{REQUEST_URI} !-f
+    RewriteRule ^api/(.*)$ server/index.php [QSA,L]
+    RewriteRule ^api$ server/index.php [QSA,L]
+
+    RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^api/(.*)$ index.php [QSA,L]
     RewriteRule ^api$ index.php [QSA,L]
 

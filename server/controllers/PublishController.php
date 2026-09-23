@@ -45,6 +45,22 @@ class PublishController {
             @mkdir($targetDir, 0755, true);
         }
 
+        // Copy / mirror uploaded assets into published website's uploads folder
+        $pubUploadsDir = $targetDir . '/uploads';
+        if (!is_dir($pubUploadsDir)) {
+            @mkdir($pubUploadsDir, 0755, true);
+        }
+        if (is_dir(UPLOADS_PATH)) {
+            $uploadedFiles = glob(UPLOADS_PATH . '/*');
+            if ($uploadedFiles) {
+                foreach ($uploadedFiles as $uFile) {
+                    if (is_file($uFile)) {
+                        @copy($uFile, $pubUploadsDir . '/' . basename($uFile));
+                    }
+                }
+            }
+        }
+
         $compiler = new HtmlCompiler();
         $publishedFiles = [];
         $publishedPagesInfo = [];
@@ -88,8 +104,9 @@ class PublishController {
         $db->prepare("UPDATE websites SET status = 'published', updated_at = CURRENT_TIMESTAMP WHERE id = ?")->execute([$websiteId]);
 
         // Build clean base URL
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+        $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+        $protocol = $isHttps ? "https://" : "http://";
+        $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
         $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
         if ($scriptDir === '/' || $scriptDir === '\\' || $scriptDir === '.') {
             $scriptDir = '';
@@ -132,8 +149,9 @@ class PublishController {
             $pSlug = trim($page['slug'] ?? 'home', '/');
             $pFilename = ($pSlug === 'home' || $pSlug === 'index') ? 'index.html' : ($pSlug . '.html');
             
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
+            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https');
+            $protocol = $isHttps ? "https://" : "http://";
+            $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? 'localhost:8000';
             $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
             if ($scriptDir === '/' || $scriptDir === '\\' || $scriptDir === '.') {
                 $scriptDir = '';
@@ -175,6 +193,33 @@ class PublishController {
     public function servePublished(array $params = [], ?array $body = null): void {
         $slug = preg_replace('/[^a-zA-Z0-9_-]/', '', $params['slug'] ?? '');
         $file = $params['file'] ?? 'index.html';
+
+        // Handle media uploads inside published folder or direct assets
+        $cleanFile = ltrim(str_replace('\\', '/', $file), '/');
+        if (str_starts_with($cleanFile, 'uploads/') || !empty($params['upload_file'])) {
+            $assetFilename = basename($params['upload_file'] ?? $cleanFile);
+            $assetPath = PUBLISHED_PATH . '/' . $slug . '/uploads/' . $assetFilename;
+            if (!file_exists($assetPath)) {
+                $assetPath = UPLOADS_PATH . '/' . $assetFilename;
+            }
+            if (file_exists($assetPath)) {
+                $ext = strtolower(pathinfo($assetPath, PATHINFO_EXTENSION));
+                $mimes = [
+                    'png' => 'image/png', 'jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg',
+                    'gif' => 'image/gif', 'webp' => 'image/webp', 'svg' => 'image/svg+xml',
+                    'ico' => 'image/x-icon', 'bmp' => 'image/bmp', 'avif' => 'image/avif',
+                    'mp4' => 'video/mp4', 'webm' => 'video/webm', 'ogg' => 'video/ogg',
+                    'mp3' => 'audio/mpeg', 'wav' => 'audio/wav', 'pdf' => 'application/pdf',
+                    'css' => 'text/css', 'js' => 'application/javascript'
+                ];
+                $mime = $mimes[$ext] ?? 'application/octet-stream';
+                header("Content-Type: {$mime}");
+                header('Cache-Control: public, max-age=31536000');
+                readfile($assetPath);
+                exit;
+            }
+        }
+
         $file = preg_replace('/[^a-zA-Z0-9_.-]/', '', $file);
 
         if (empty($file) || $file === 'index') {

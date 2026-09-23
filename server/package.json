@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "description": "LightBuilder PHP REST Backend Server",
   "scripts": {
-    "start": "php -S 127.0.0.1:8000 router.php"
+    "start": "php -d upload_max_filesize=1024M -d post_max_size=1024M -d memory_limit=1024M -d max_execution_time=600 -S 127.0.0.1:8000 router.php"
   }
 }

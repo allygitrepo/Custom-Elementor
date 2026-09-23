@@ -11,16 +11,18 @@ import {
   TypographyControl, 
   BorderControl, 
   ImageControl, 
-  ResponsiveControl 
+  ResponsiveControl,
+  RepeaterControl 
 } from './AdvancedControls';
-import { Sliders, Paintbrush, Cog, Trash2, Copy, Layers } from 'lucide-react';
+import { Sliders, Paintbrush, Cog, Trash2, Copy, Layers, Monitor, Tablet, Smartphone } from 'lucide-react';
 
 export default function DynamicControlPanel({ 
   element, 
   widgetDef, 
   onUpdateSettings, 
   onDelete, 
-  onDuplicate 
+  onDuplicate,
+  onClose
 }) {
   const [activeTab, setActiveTab] = useState('content');
 
@@ -48,7 +50,7 @@ export default function DynamicControlPanel({
   const styleControls = controls.filter(c => c.tab === 'style');
   const advancedControls = controls.filter(c => c.tab === 'advanced');
 
-  // Common advanced controls (margin, padding, CSS class, zIndex)
+  // Common advanced controls (margin, padding, CSS class, zIndex, opacity, shadow, animation, visibility)
   const renderCommonAdvanced = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       <SpacingControl
@@ -70,7 +72,7 @@ export default function DynamicControlPanel({
             type="number"
             className="form-input"
             placeholder="0"
-            value={settings.zIndex || ''}
+            value={settings.zIndex !== undefined ? settings.zIndex : ''}
             onChange={(e) => handleControlChange('zIndex', e.target.value)}
           />
         </div>
@@ -86,6 +88,111 @@ export default function DynamicControlPanel({
           />
         </div>
       </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Opacity</label>
+          <input
+            type="number"
+            min="0"
+            max="1"
+            step="0.05"
+            className="form-input"
+            placeholder="1"
+            value={settings.opacity !== undefined ? settings.opacity : ''}
+            onChange={(e) => handleControlChange('opacity', e.target.value)}
+          />
+        </div>
+
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Border Radius</label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="e.g. 12px"
+            value={settings.borderRadius || ''}
+            onChange={(e) => handleControlChange('borderRadius', e.target.value)}
+          />
+        </div>
+      </div>
+
+      <SelectControl
+        label="Box Shadow / Glow"
+        value={settings.boxShadow || 'none'}
+        options={[
+          { label: 'None', value: 'none' },
+          { label: 'Subtle Soft', value: '0 4px 12px rgba(0,0,0,0.1)' },
+          { label: 'Medium Elevated', value: '0 8px 24px rgba(0,0,0,0.25)' },
+          { label: 'Large Deep', value: '0 16px 40px rgba(0,0,0,0.4)' },
+          { label: 'Cyan Neon Glow', value: '0 0 25px rgba(56, 189, 248, 0.3)' },
+          { label: 'Purple Neon Glow', value: '0 0 25px rgba(168, 85, 247, 0.3)' },
+          { label: 'Card Inset Shadow', value: 'inset 0 1px 0 rgba(255,255,255,0.1)' }
+        ]}
+        onChange={(val) => handleControlChange('boxShadow', val)}
+      />
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+        <SelectControl
+          label="Entrance Animation"
+          value={settings.animation || 'none'}
+          options={[
+            { label: 'None', value: 'none' },
+            { label: 'Fade In', value: 'fadeIn' },
+            { label: 'Slide Up', value: 'slideUp' },
+            { label: 'Slide In Left', value: 'slideLeft' },
+            { label: 'Slide In Right', value: 'slideRight' },
+            { label: 'Zoom In', value: 'zoomIn' },
+            { label: 'Pulse', value: 'pulse' }
+          ]}
+          onChange={(val) => handleControlChange('animation', val)}
+        />
+
+        <div className="form-group" style={{ margin: 0 }}>
+          <label className="form-label">Anim Duration</label>
+          <input
+            type="text"
+            className="form-input"
+            placeholder="0.6s"
+            value={settings.animationDuration || ''}
+            onChange={(e) => handleControlChange('animationDuration', e.target.value)}
+          />
+        </div>
+      </div>
+
+      {/* Responsive Device Visibility */}
+      <div style={{
+        marginTop: '8px',
+        padding: '14px',
+        borderRadius: 'var(--radius-md)',
+        background: 'var(--bg-surface-elevated)',
+        border: '1px solid var(--border-subtle)',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '10px'
+      }}>
+        <div style={{ fontSize: '12px', fontWeight: '700', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Monitor size={14} color="var(--primary)" />
+          <span>Responsive Visibility</span>
+        </div>
+
+        <ToggleControl
+          label="Hide on Desktop"
+          checked={Boolean(settings.hideOnDesktop)}
+          onChange={(checked) => handleControlChange('hideOnDesktop', checked)}
+        />
+
+        <ToggleControl
+          label="Hide on Tablet"
+          checked={Boolean(settings.hideOnTablet)}
+          onChange={(checked) => handleControlChange('hideOnTablet', checked)}
+        />
+
+        <ToggleControl
+          label="Hide on Mobile"
+          checked={Boolean(settings.hideOnMobile)}
+          onChange={(checked) => handleControlChange('hideOnMobile', checked)}
+        />
+      </div>
     </div>
   );
 
@@ -100,8 +207,32 @@ export default function DynamicControlPanel({
             label={ctrl.label}
             value={val}
             placeholder={ctrl.placeholder}
-            multiline={ctrl.multiline}
-            rows={ctrl.rows}
+            multiline={ctrl.multiline || false}
+            rows={ctrl.rows || 2}
+            onChange={(newVal) => handleControlChange(ctrl.name, newVal)}
+          />
+        );
+
+      case 'textarea':
+        return (
+          <TextControl
+            key={ctrl.name}
+            label={ctrl.label}
+            value={val}
+            placeholder={ctrl.placeholder}
+            multiline={true}
+            rows={ctrl.rows || 3}
+            onChange={(newVal) => handleControlChange(ctrl.name, newVal)}
+          />
+        );
+
+      case 'responsive_text':
+        return (
+          <TextControl
+            key={ctrl.name}
+            label={ctrl.label}
+            value={typeof val === 'object' ? (val.desktop || '') : val}
+            placeholder={ctrl.placeholder}
             onChange={(newVal) => handleControlChange(ctrl.name, newVal)}
           />
         );
@@ -192,6 +323,19 @@ export default function DynamicControlPanel({
           />
         );
 
+      case 'repeater':
+        return (
+          <RepeaterControl
+            key={ctrl.name}
+            label={ctrl.label}
+            value={val || []}
+            itemLabel={ctrl.itemLabel || 'Item'}
+            fields={ctrl.fields || []}
+            defaultItem={ctrl.defaultItem || {}}
+            onChange={(newVal) => handleControlChange(ctrl.name, newVal)}
+          />
+        );
+
       case 'responsive':
         return (
           <ResponsiveControl
@@ -203,7 +347,15 @@ export default function DynamicControlPanel({
         );
 
       default:
-        return null;
+        return (
+          <TextControl
+            key={ctrl.name}
+            label={ctrl.label || ctrl.name}
+            value={val}
+            placeholder={ctrl.placeholder}
+            onChange={(newVal) => handleControlChange(ctrl.name, newVal)}
+          />
+        );
     }
   };
 
@@ -241,7 +393,7 @@ export default function DynamicControlPanel({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '6px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           {onDuplicate && (
             <button
               onClick={onDuplicate}
@@ -261,6 +413,18 @@ export default function DynamicControlPanel({
               style={{ padding: '4px 6px' }}
             >
               <Trash2 size={13} />
+            </button>
+          )}
+
+          {onClose && (
+            <button
+              onClick={onClose}
+              title="Collapse Settings Panel"
+              className="btn btn-secondary"
+              style={{ padding: '4px 6px', marginLeft: '4px' }}
+            >
+              <Trash2 size={0} style={{ display: 'none' }} />
+              <span style={{ fontSize: '13px', display: 'flex', alignItems: 'center' }}>✕</span>
             </button>
           )}
         </div>
@@ -333,9 +497,23 @@ export default function DynamicControlPanel({
         )}
 
         {activeTab === 'advanced' && (
-          <div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             {advancedControls.map(renderControl)}
             {renderCommonAdvanced()}
+
+            {onDelete && (
+              <div style={{ marginTop: '16px', paddingTop: '16px', borderTop: '1px solid var(--border-subtle)' }}>
+                <button
+                  type="button"
+                  onClick={onDelete}
+                  className="btn btn-danger"
+                  style={{ width: '100%', padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontWeight: '700' }}
+                >
+                  <Trash2 size={16} />
+                  <span>Delete This Element</span>
+                </button>
+              </div>
+            )}
           </div>
         )}
       </div>

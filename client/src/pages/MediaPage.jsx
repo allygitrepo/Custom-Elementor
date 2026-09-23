@@ -9,14 +9,19 @@ import {
   Copy, 
   Check, 
   ExternalLink,
-  HardDrive
+  HardDrive,
+  Film,
+  FileText,
+  Music
 } from 'lucide-react';
+import { getMediaUrl } from '../utils/media';
 
 export default function MediaPage() {
   const [mediaItems, setMediaItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('all');
   const [activeItem, setActiveItem] = useState(null);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
@@ -79,15 +84,67 @@ export default function MediaPage() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const filteredItems = mediaItems.filter(m => 
-    m.original_name.toLowerCase().includes(search.toLowerCase()) ||
-    m.filename.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredItems = mediaItems.filter(m => {
+    const matchesSearch = m.original_name.toLowerCase().includes(search.toLowerCase()) ||
+      m.filename.toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (filterType === 'image') return m.file_type?.startsWith('image/');
+    if (filterType === 'video') return m.file_type?.startsWith('video/');
+    if (filterType === 'other') return !m.file_type?.startsWith('image/') && !m.file_type?.startsWith('video/');
+    return true;
+  });
 
   const formatSize = (bytes) => {
+    if (!bytes) return '0 B';
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const renderMediaThumbnail = (item) => {
+    const isVideo = item.file_type?.startsWith('video/');
+    const isAudio = item.file_type?.startsWith('audio/');
+    const isPdf = item.file_type === 'application/pdf';
+
+    if (isVideo) {
+      return (
+        <div style={{ width: '100%', height: '100%', position: 'relative', background: '#070a0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <video src={getMediaUrl(item.file_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted preload="metadata" />
+          <div style={{ position: 'absolute', bottom: '6px', left: '6px', background: 'rgba(0,0,0,0.8)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Film size={11} />
+            <span>Video</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (isAudio) {
+      return (
+        <div style={{ width: '100%', height: '100%', background: '#0d2b5e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', gap: '6px' }}>
+          <Music size={28} />
+          <span style={{ fontSize: '10px' }}>Audio</span>
+        </div>
+      );
+    }
+
+    if (isPdf) {
+      return (
+        <div style={{ width: '100%', height: '100%', background: '#1e293b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#f43f5e', gap: '6px' }}>
+          <FileText size={28} />
+          <span style={{ fontSize: '10px' }}>PDF</span>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={getMediaUrl(item.file_url)}
+        alt={item.original_name}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    );
   };
 
   return (
@@ -99,23 +156,27 @@ export default function MediaPage() {
         justifyContent: 'space-between',
         flexWrap: 'wrap',
         gap: '16px',
-        marginBottom: '24px'
+        marginBottom: '28px'
       }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '800' }}>Media Library</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '2px' }}>
-            Upload, preview, and manage images for your websites and visual builder.
+          <h1 style={{ fontSize: '26px', fontWeight: '800', display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <HardDrive size={24} color="var(--primary)" />
+            <span>Media Library</span>
+          </h1>
+          <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '4px' }}>
+            Upload and manage images, videos, audio, and documents for your pages.
           </p>
         </div>
 
-        <div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
           <input
             type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
-            accept="image/*"
+            accept="image/*,video/*,audio/*,.pdf"
             style={{ display: 'none' }}
           />
+
           <button
             onClick={() => fileInputRef.current?.click()}
             className="btn btn-primary"
@@ -129,7 +190,7 @@ export default function MediaPage() {
             ) : (
               <>
                 <Upload size={18} />
-                <span>Upload New Image</span>
+                <span>Upload Media / Video</span>
               </>
             )}
           </button>
@@ -137,31 +198,59 @@ export default function MediaPage() {
       </div>
 
       {error && (
-        <div className="alert alert-error">
+        <div className="alert alert-error" style={{ marginBottom: '20px' }}>
           <span>{error}</span>
         </div>
       )}
 
       {/* Main Content Layout */}
-      <div style={{ display: 'grid', gridTemplateColumns: activeItem ? '1fr 320px' : '1fr', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: activeItem ? '1fr 340px' : '1fr', gap: '24px' }}>
         {/* Gallery Section */}
         <div>
-          {/* Search bar */}
-          <div style={{ position: 'relative', marginBottom: '20px' }}>
-            <input
-              type="text"
-              className="form-input"
-              style={{ paddingLeft: '38px' }}
-              placeholder="Search images by name..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <Search size={16} color="var(--text-dim)" style={{
-              position: 'absolute',
-              left: '12px',
-              top: '50%',
-              transform: 'translateY(-50%)'
-            }} />
+          {/* Search & Filter bar */}
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '20px' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                type="text"
+                className="form-input"
+                style={{ paddingLeft: '38px' }}
+                placeholder="Search media files by name..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <Search size={16} color="var(--text-dim)" style={{
+                position: 'absolute',
+                left: '12px',
+                top: '50%',
+                transform: 'translateY(-50%)'
+              }} />
+            </div>
+
+            <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-surface-elevated)', padding: '3px', borderRadius: '8px' }}>
+              {[
+                { key: 'all', label: 'All' },
+                { key: 'image', label: 'Images' },
+                { key: 'video', label: 'Videos' },
+                { key: 'other', label: 'Docs' }
+              ].map((tab) => (
+                <button
+                  key={tab.key}
+                  onClick={() => setFilterType(tab.key)}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: '6px',
+                    border: 'none',
+                    background: filterType === tab.key ? 'var(--primary)' : 'transparent',
+                    color: filterType === tab.key ? '#070a0f' : 'var(--text-muted)',
+                    fontSize: '12px',
+                    fontWeight: '700',
+                    cursor: 'pointer'
+                  }}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
           </div>
 
           {loading ? (
@@ -178,11 +267,11 @@ export default function MediaPage() {
               <ImageIcon size={48} color="var(--text-dim)" style={{ margin: '0 auto 16px' }} />
               <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>No Media Found</h3>
               <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '400px', margin: '0 auto 20px' }}>
-                Upload image assets (PNG, JPG, SVG, WebP) to use in your visual editor.
+                Upload image, video, audio, or document assets to use in your visual editor.
               </p>
               <button onClick={() => fileInputRef.current?.click()} className="btn btn-primary">
                 <Upload size={16} />
-                <span>Upload First Image</span>
+                <span>Upload First Media</span>
               </button>
             </div>
           ) : (
@@ -207,11 +296,7 @@ export default function MediaPage() {
                       transition: 'border-color var(--transition-fast)'
                     }}
                   >
-                    <img
-                      src={item.file_url}
-                      alt={item.original_name}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
+                    {renderMediaThumbnail(item)}
                     <div style={{
                       position: 'absolute',
                       inset: 'auto 0 0 0',
@@ -221,7 +306,8 @@ export default function MediaPage() {
                       color: '#ffffff',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap'
+                      whiteSpace: 'nowrap',
+                      zIndex: 10
                     }}>
                       {item.original_name}
                     </div>
@@ -247,11 +333,19 @@ export default function MediaPage() {
               alignItems: 'center',
               justifyContent: 'center'
             }}>
-              <img
-                src={activeItem.file_url}
-                alt={activeItem.original_name}
-                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              />
+              {activeItem.file_type?.startsWith('video/') ? (
+                <video
+                  src={getMediaUrl(activeItem.file_url)}
+                  controls
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              ) : (
+                <img
+                  src={getMediaUrl(activeItem.file_url)}
+                  alt={activeItem.original_name}
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              )}
             </div>
 
             <h3 style={{ fontSize: '15px', fontWeight: '700', wordBreak: 'break-all', marginBottom: '12px' }}>
@@ -260,66 +354,66 @@ export default function MediaPage() {
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px', color: 'var(--text-dim)', marginBottom: '20px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span>File Type:</span>
-                <span style={{ color: 'var(--text-muted)' }}>{activeItem.file_type}</span>
+                <span>Type:</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{activeItem.file_type}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>File Size:</span>
-                <span style={{ color: 'var(--text-muted)' }}>{formatSize(activeItem.file_size)}</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{formatSize(activeItem.file_size)}</span>
               </div>
               {activeItem.width && (
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Dimensions:</span>
-                  <span style={{ color: 'var(--text-muted)' }}>{activeItem.width} × {activeItem.height} px</span>
+                  <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{activeItem.width} × {activeItem.height} px</span>
                 </div>
               )}
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span>Uploaded:</span>
-                <span style={{ color: 'var(--text-muted)' }}>{new Date(activeItem.created_at).toLocaleDateString()}</span>
+                <span style={{ color: 'var(--text-main)', fontWeight: '600' }}>{new Date(activeItem.created_at).toLocaleDateString()}</span>
               </div>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label" style={{ fontSize: '12px' }}>Direct URL</label>
-              <div style={{ display: 'flex', gap: '6px' }}>
+            {/* URL Display */}
+            <div className="form-group">
+              <label className="form-label" style={{ fontSize: '12px' }}>Direct File URL</label>
+              <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type="text"
                   readOnly
                   value={activeItem.file_url}
                   className="form-input"
-                  style={{ fontSize: '12px', padding: '6px 8px' }}
-                  onClick={(e) => e.target.select()}
+                  style={{ fontSize: '12px', padding: '6px 10px' }}
                 />
                 <button
                   onClick={() => handleCopyUrl(activeItem.file_url)}
                   className="btn btn-secondary"
-                  style={{ padding: '6px 10px' }}
-                  title="Copy URL"
+                  style={{ padding: '6px 12px' }}
+                  title="Copy link"
                 >
                   {copied ? <Check size={14} color="var(--accent-emerald)" /> : <Copy size={14} />}
                 </button>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
               <a
                 href={activeItem.file_url}
                 target="_blank"
                 rel="noreferrer"
                 className="btn btn-secondary"
-                style={{ flex: 1, padding: '8px', fontSize: '13px' }}
+                style={{ flex: 1, padding: '8px' }}
               >
-                <ExternalLink size={14} />
-                <span>Open</span>
+                <ExternalLink size={15} />
+                <span>Open File</span>
               </a>
 
               <button
                 onClick={() => handleDelete(activeItem.id)}
                 className="btn btn-danger"
-                style={{ flex: 1, padding: '8px', fontSize: '13px' }}
+                style={{ padding: '8px 14px' }}
+                title="Delete Media"
               >
-                <Trash2 size={14} />
-                <span>Delete</span>
+                <Trash2 size={15} />
               </button>
             </div>
           </div>

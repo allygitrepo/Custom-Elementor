@@ -7,6 +7,11 @@ namespace LightBuilder\Middleware;
 
 class Response {
     public static function json($data, int $statusCode = 200, string $message = ''): void {
+        // Clean any buffered output to prevent stray characters or notices before JSON
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=utf-8');
 
@@ -31,6 +36,11 @@ class Response {
     }
 
     public static function error(string $message = 'An error occurred', int $statusCode = 400, $errors = null): void {
+        // Clean any buffered output to prevent stray characters or notices before JSON
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+
         http_response_code($statusCode);
         header('Content-Type: application/json; charset=utf-8');
 

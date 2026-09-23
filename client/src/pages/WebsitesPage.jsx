@@ -1,21 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { getPublishedUrl } from '../utils/media';
 import { 
   Plus, 
   Search, 
   Globe, 
-  FileText, 
   Copy, 
   Trash2, 
   ExternalLink, 
   Edit3, 
   Layers, 
-  MoreVertical,
-  Calendar,
-  Sparkles,
-  Loader2,
-  AlertCircle
+  Calendar, 
+  Sparkles, 
+  Loader2, 
+  CheckCircle,
+  Zap,
+  Layout
 } from 'lucide-react';
 
 export default function WebsitesPage() {
@@ -66,18 +67,48 @@ export default function WebsitesPage() {
 
     try {
       setCreating(true);
-      const created = await api.createWebsite(newSite);
+      const res = await api.createWebsite(newSite);
       setIsCreateOpen(false);
       setNewSite({ name: '', slug: '', domain: '' });
-      await fetchWebsites();
-      // Navigate to website pages
-      if (created?.id) {
-        navigate(`/websites/${created.id}/pages`);
+      
+      const targetPageId = res?.primary_page_id || res?.page_id;
+      if (targetPageId) {
+        navigate(`/builder/${targetPageId}`);
+      } else if (res?.id) {
+        // Fetch website details to get its primary page
+        const details = await api.getWebsite(res.id);
+        const pageId = details?.pages?.[0]?.id;
+        if (pageId) {
+          navigate(`/builder/${pageId}`);
+        } else {
+          await fetchWebsites();
+        }
+      } else {
+        await fetchWebsites();
       }
     } catch (err) {
       setModalError(err.message || 'Failed to create website.');
     } finally {
       setCreating(false);
+    }
+  };
+
+  const handleOpenBuilder = async (site, e) => {
+    e?.stopPropagation();
+    if (site.primary_page_id) {
+      navigate(`/builder/${site.primary_page_id}`);
+    } else {
+      try {
+        const details = await api.getWebsite(site.id);
+        const pageId = details?.pages?.[0]?.id;
+        if (pageId) {
+          navigate(`/builder/${pageId}`);
+        } else {
+          alert('No page found for this website.');
+        }
+      } catch (err) {
+        alert('Failed to open builder: ' + err.message);
+      }
     }
   };
 
@@ -93,7 +124,7 @@ export default function WebsitesPage() {
 
   const handleDelete = async (id, name, e) => {
     e.stopPropagation();
-    if (window.confirm(`Are you sure you want to delete "${name}" and all of its pages? This action cannot be undone.`)) {
+    if (window.confirm(`Are you sure you want to delete "${name}"? This action cannot be undone.`)) {
       try {
         await api.deleteWebsite(id);
         await fetchWebsites();
@@ -110,7 +141,7 @@ export default function WebsitesPage() {
     return matchesSearch && matchesFilter;
   });
 
-  const totalPages = websites.reduce((acc, curr) => acc + (parseInt(curr.pages_count, 10) || 0), 0);
+  const publishedCount = websites.filter(s => s.status === 'published' || s.status === 'active').length;
 
   return (
     <div style={{ padding: '32px', maxWidth: '1280px', margin: '0 auto' }}>
@@ -135,27 +166,8 @@ export default function WebsitesPage() {
             <Globe size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Websites</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Single Page Websites</div>
             <div style={{ fontSize: '26px', fontWeight: '800' }}>{websites.length}</div>
-          </div>
-        </div>
-
-        <div className="glass-card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{
-            width: '48px',
-            height: '48px',
-            borderRadius: '12px',
-            background: 'rgba(168, 85, 247, 0.15)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--accent-purple)'
-          }}>
-            <Layers size={24} />
-          </div>
-          <div>
-            <div style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Total Pages</div>
-            <div style={{ fontSize: '26px', fontWeight: '800' }}>{totalPages}</div>
           </div>
         </div>
 
@@ -170,12 +182,31 @@ export default function WebsitesPage() {
             justifyContent: 'center',
             color: 'var(--accent-emerald)'
           }}>
-            <Sparkles size={24} />
+            <CheckCircle size={24} />
           </div>
           <div>
-            <div style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>System Status</div>
-            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent-emerald)', marginTop: '4px' }}>
-              ● Ready & Operational
+            <div style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Published & Active</div>
+            <div style={{ fontSize: '26px', fontWeight: '800' }}>{publishedCount}</div>
+          </div>
+        </div>
+
+        <div className="glass-card" style={{ padding: '20px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{
+            width: '48px',
+            height: '48px',
+            borderRadius: '12px',
+            background: 'rgba(168, 85, 247, 0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: 'var(--accent-purple)'
+          }}>
+            <Zap size={24} />
+          </div>
+          <div>
+            <div style={{ fontSize: '13px', color: 'var(--text-dim)', fontWeight: '600' }}>Builder Mode</div>
+            <div style={{ fontSize: '15px', fontWeight: '700', color: 'var(--accent-purple)', marginTop: '4px' }}>
+              ⚡ Single Page Engine
             </div>
           </div>
         </div>
@@ -191,9 +222,9 @@ export default function WebsitesPage() {
         marginBottom: '24px'
       }}>
         <div>
-          <h1 style={{ fontSize: '24px', fontWeight: '800' }}>Websites & Projects</h1>
+          <h1 style={{ fontSize: '24px', fontWeight: '800' }}>My Single Page Websites</h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginTop: '2px' }}>
-            Manage your websites, create new projects, and open the visual builder.
+            Build and publish high-converting single page websites and landing pages.
           </p>
         </div>
 
@@ -202,7 +233,7 @@ export default function WebsitesPage() {
           className="btn btn-primary"
         >
           <Plus size={18} />
-          <span>New Website</span>
+          <span>New Single Page Site</span>
         </button>
       </div>
 
@@ -233,7 +264,7 @@ export default function WebsitesPage() {
         </div>
 
         <div style={{ display: 'flex', gap: '8px' }}>
-          {['all', 'active', 'draft'].map(status => (
+          {['all', 'active', 'published', 'draft'].map(status => (
             <button
               key={status}
               onClick={() => setFilterStatus(status)}
@@ -270,11 +301,11 @@ export default function WebsitesPage() {
           <Globe size={48} color="var(--text-dim)" style={{ margin: '0 auto 16px' }} />
           <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px' }}>No Websites Found</h3>
           <p style={{ color: 'var(--text-muted)', fontSize: '14px', maxWidth: '400px', margin: '0 auto 20px' }}>
-            {searchQuery ? 'No websites matched your search query.' : 'Create your first website project to get started with the visual builder.'}
+            {searchQuery ? 'No websites matched your search query.' : 'Create your first single page website to get started with the visual builder.'}
           </p>
           <button onClick={() => setIsCreateOpen(true)} className="btn btn-primary">
             <Plus size={16} />
-            <span>Create Website</span>
+            <span>Create Single Page Site</span>
           </button>
         </div>
       ) : (
@@ -293,17 +324,25 @@ export default function WebsitesPage() {
                 flexDirection: 'column',
                 justifyContent: 'space-between',
                 transition: 'transform var(--transition-smooth), border-color var(--transition-smooth)',
-                position: 'relative'
+                position: 'relative',
+                cursor: 'pointer'
               }}
-              onMouseEnter={(e) => e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)'}
-              onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--border-glass)'}
+              onClick={() => handleOpenBuilder(site)}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+                e.currentTarget.style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = 'var(--border-glass)';
+                e.currentTarget.style.transform = 'none';
+              }}
             >
               <div>
                 {/* Card Top */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                   <div style={{
-                    width: '40px',
-                    height: '40px',
+                    width: '42px',
+                    height: '42px',
                     borderRadius: '10px',
                     background: 'linear-gradient(135deg, rgba(56, 189, 248, 0.2), rgba(168, 85, 247, 0.2))',
                     border: '1px solid var(--border-subtle)',
@@ -315,9 +354,14 @@ export default function WebsitesPage() {
                     <Globe size={20} />
                   </div>
 
-                  <span className={`badge ${site.status === 'active' ? 'badge-success' : 'badge-warning'}`}>
-                    {site.status}
-                  </span>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <span className="badge badge-info" style={{ fontSize: '11px' }}>
+                      One-Page
+                    </span>
+                    <span className={`badge ${site.status === 'published' || site.status === 'active' ? 'badge-success' : 'badge-warning'}`}>
+                      {site.status}
+                    </span>
+                  </div>
                 </div>
 
                 <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '6px' }}>
@@ -337,8 +381,8 @@ export default function WebsitesPage() {
                 {/* Metadata */}
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '13px', color: 'var(--text-muted)', marginBottom: '20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <FileText size={15} color="var(--text-dim)" />
-                    <span>{site.pages_count || 1} {parseInt(site.pages_count, 10) === 1 ? 'Page' : 'Pages'}</span>
+                    <Layout size={15} color="var(--text-dim)" />
+                    <span>Single Page Site</span>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
                     <Calendar size={15} color="var(--text-dim)" />
@@ -356,23 +400,23 @@ export default function WebsitesPage() {
                 borderTop: '1px solid var(--border-subtle)',
                 gap: '8px'
               }}>
-                <Link
-                  to={`/websites/${site.id}/pages`}
+                <button
+                  onClick={(e) => handleOpenBuilder(site, e)}
                   className="btn btn-primary"
-                  style={{ flex: 1, padding: '8px 14px', fontSize: '13px' }}
+                  style={{ flex: 1, padding: '9px 14px', fontSize: '13px' }}
                 >
-                  <Layers size={15} />
-                  <span>Manage Pages</span>
-                </Link>
+                  <Edit3 size={15} />
+                  <span>Open Visual Builder</span>
+                </button>
 
-                {site.status === 'published' && (
+                {(site.status === 'published' || site.status === 'active') && (
                   <a
-                    href={`/published/${site.slug}/index.html`}
+                    href={getPublishedUrl(site.slug, 'index.html')}
                     target="_blank"
                     rel="noreferrer"
                     title="View Live Published Site"
                     className="btn btn-secondary"
-                    style={{ padding: '8px 10px' }}
+                    style={{ padding: '9px 12px' }}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <ExternalLink size={15} />
@@ -383,7 +427,7 @@ export default function WebsitesPage() {
                   onClick={(e) => handleDuplicate(site.id, e)}
                   title="Duplicate Website"
                   className="btn btn-secondary"
-                  style={{ padding: '8px 10px' }}
+                  style={{ padding: '9px 12px' }}
                 >
                   <Copy size={15} />
                 </button>
@@ -392,7 +436,7 @@ export default function WebsitesPage() {
                   onClick={(e) => handleDelete(site.id, site.name, e)}
                   title="Delete Website"
                   className="btn btn-danger"
-                  style={{ padding: '8px 10px' }}
+                  style={{ padding: '9px 12px' }}
                 >
                   <Trash2 size={15} />
                 </button>
@@ -402,7 +446,7 @@ export default function WebsitesPage() {
         </div>
       )}
 
-      {/* Create Website Modal */}
+      {/* Create Single Page Website Modal */}
       {isCreateOpen && (
         <div style={{
           position: 'fixed',
@@ -417,10 +461,10 @@ export default function WebsitesPage() {
         }}>
           <div className="glass-card" style={{ maxWidth: '480px', width: '100%', padding: '32px' }}>
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>
-              Create New Website
+              Create Single Page Website
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginBottom: '20px' }}>
-              Set up a new website workspace. You will be able to design pages visually.
+              Set up a fast, modern single page website or landing page. Automatically launches directly into the visual builder.
             </p>
 
             {modalError && (
@@ -435,10 +479,11 @@ export default function WebsitesPage() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="e.g. Acme Corp Agency"
+                  placeholder="e.g. Acme Agency Landing"
                   value={newSite.name}
                   onChange={(e) => handleNameChange(e.target.value)}
                   required
+                  autoFocus
                 />
               </div>
 
@@ -447,12 +492,12 @@ export default function WebsitesPage() {
                 <input
                   type="text"
                   className="form-input"
-                  placeholder="acme-corp-agency"
+                  placeholder="acme-agency-landing"
                   value={newSite.slug}
                   onChange={(e) => setNewSite({ ...newSite, slug: e.target.value })}
                 />
                 <span style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '4px' }}>
-                  Used for publishing path: /published/{newSite.slug || 'slug'}
+                  Live URL path: /published/{newSite.slug || 'slug'}/index.html
                 </span>
               </div>
 
@@ -484,12 +529,12 @@ export default function WebsitesPage() {
                   {creating ? (
                     <>
                       <Loader2 size={16} className="animate-spin" />
-                      <span>Creating...</span>
+                      <span>Creating & Launching...</span>
                     </>
                   ) : (
                     <>
-                      <Plus size={16} />
-                      <span>Create Website</span>
+                      <Sparkles size={16} />
+                      <span>Create & Open Builder</span>
                     </>
                   )}
                 </button>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useEditor } from './context/EditorContext';
 import { api } from '../services/api';
+import { getPublishedUrl } from '../utils/media';
 import { 
   ArrowLeft, 
   Undo2, 
@@ -17,7 +18,11 @@ import {
   Check, 
   Globe, 
   ExternalLink,
-  X
+  X,
+  PanelLeft,
+  PanelRight,
+  Layers,
+  Sliders
 } from 'lucide-react';
 
 export default function TopToolbar() {
@@ -27,6 +32,10 @@ export default function TopToolbar() {
     setResponsiveMode, 
     previewMode, 
     setPreviewMode, 
+    leftSidebarOpen,
+    rightSidebarOpen,
+    toggleLeftSidebar,
+    toggleRightSidebar,
     canUndo, 
     canRedo, 
     undo, 
@@ -40,9 +49,9 @@ export default function TopToolbar() {
   const [publishedData, setPublishedData] = useState(null);
 
   const devices = [
-    { key: 'desktop', icon: Monitor, label: 'Desktop (1200px)' },
-    { key: 'tablet', icon: Tablet, label: 'Tablet (768px)' },
-    { key: 'mobile', icon: Smartphone, label: 'Mobile (375px)' }
+    { key: 'desktop', icon: Monitor, label: 'Desktop View (Full Width)' },
+    { key: 'tablet', icon: Tablet, label: 'Tablet View (768px)' },
+    { key: 'mobile', icon: Smartphone, label: 'Mobile View (375px)' }
   ];
 
   const handlePublish = async () => {
@@ -73,40 +82,63 @@ export default function TopToolbar() {
         zIndex: 60,
         userSelect: 'none'
       }}>
-        {/* Left Area: Back & Page Meta */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        {/* Left Area: Back, Panel Toggle & Page Meta */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Link
-            to={page?.website_id ? `/websites/${page.website_id}/pages` : '/'}
-            title="Back to Pages"
+            to="/websites"
+            title="Back to Websites Dashboard"
             style={{
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width: '32px',
-              height: '32px',
+              width: '34px',
+              height: '34px',
               borderRadius: 'var(--radius-sm)',
               background: 'var(--bg-surface-elevated)',
               color: 'var(--text-muted)',
               border: '1px solid var(--border-subtle)',
-              textDecoration: 'none'
+              textDecoration: 'none',
+              transition: 'all var(--transition-fast)'
             }}
           >
             <ArrowLeft size={16} />
           </Link>
 
-          <div>
+          {/* Left Sidebar (Widgets & Layers) Toggle Button */}
+          <button
+            onClick={toggleLeftSidebar}
+            title={leftSidebarOpen ? "Collapse Left Panel (Widgets & Tree)" : "Expand Left Panel (Widgets & Tree)"}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '34px',
+              padding: '0 10px',
+              borderRadius: 'var(--radius-sm)',
+              background: leftSidebarOpen ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-surface-elevated)',
+              color: leftSidebarOpen ? 'var(--primary)' : 'var(--text-muted)',
+              border: leftSidebarOpen ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-subtle)',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600',
+              transition: 'all var(--transition-fast)'
+            }}
+          >
+            <PanelLeft size={15} />
+            <span>{leftSidebarOpen ? 'Hide Panel' : 'Widgets'}</span>
+          </button>
+
+          <div style={{ marginLeft: '4px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <span style={{ fontSize: '14px', fontWeight: '700', color: 'var(--text-main)' }}>
-                {page?.title || 'Page Editor'}
+                {page?.website_name || page?.title || 'Single Page Website'}
               </span>
-              {page?.slug && (
-                <span className="badge badge-info" style={{ fontSize: '10px', padding: '1px 6px', fontFamily: 'var(--font-mono)' }}>
-                  /{page.slug}
-                </span>
-              )}
+              <span className="badge badge-info" style={{ fontSize: '10px', padding: '1px 6px' }}>
+                Single Page Site
+              </span>
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span>{page?.website_name || 'Website'}</span>
+              <span>/{page?.website_slug || page?.slug || 'home'}</span>
               <span>•</span>
               <span style={{ color: saveStatus === 'All changes saved' ? 'var(--accent-emerald)' : 'var(--accent-amber)' }}>
                 {saveStatus}
@@ -197,8 +229,33 @@ export default function TopToolbar() {
           })}
         </div>
 
-        {/* Right Area: Preview, Save & Publish */}
+        {/* Right Area: Panel Toggle, Preview, Save & Publish */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {/* Right Sidebar (Settings & Styles) Toggle Button */}
+          <button
+            onClick={toggleRightSidebar}
+            title={rightSidebarOpen ? "Collapse Settings Panel" : "Expand Settings Panel"}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              height: '34px',
+              padding: '0 10px',
+              borderRadius: 'var(--radius-sm)',
+              background: rightSidebarOpen ? 'rgba(56, 189, 248, 0.12)' : 'var(--bg-surface-elevated)',
+              color: rightSidebarOpen ? 'var(--primary)' : 'var(--text-muted)',
+              border: rightSidebarOpen ? '1px solid rgba(56, 189, 248, 0.4)' : '1px solid var(--border-subtle)',
+              cursor: 'pointer',
+              fontSize: '12px',
+              fontWeight: '600',
+              transition: 'all var(--transition-fast)',
+              marginRight: '4px'
+            }}
+          >
+            <Sliders size={15} />
+            <span>{rightSidebarOpen ? 'Hide Settings' : 'Settings'}</span>
+          </button>
+
           <button
             onClick={() => setPreviewMode(!previewMode)}
             className="btn btn-secondary"
@@ -278,10 +335,10 @@ export default function TopToolbar() {
             </div>
 
             <h2 style={{ fontSize: '20px', fontWeight: '800', marginBottom: '8px' }}>
-              Website Published Live!
+              Single Page Website Published!
             </h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '14px', marginBottom: '20px' }}>
-              All <strong>{publishedData.pages_count || (publishedData.pages?.length) || 1}</strong> pages have been compiled with synchronized multi-page navigation.
+              Your single page website has been compiled into static, blazing-fast HTML and CSS with instant load speeds.
             </p>
 
             <div className="form-group" style={{ textAlign: 'left', marginBottom: '16px' }}>
@@ -314,9 +371,7 @@ export default function TopToolbar() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {publishedData.pages.map((p) => {
-                    const protocol = window.location.protocol;
-                    const host = window.location.port === '5173' ? '127.0.0.1:8000' : window.location.host;
-                    const pUrl = `${protocol}//${host}/published/${publishedData.website_slug}/${p.filename}`;
+                    const pUrl = getPublishedUrl(publishedData.website_slug, p.filename);
                     return (
                       <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

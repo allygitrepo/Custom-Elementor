@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Link2, Unlink, Monitor, Tablet, Smartphone, Image as ImageIcon, Sparkles, Upload } from 'lucide-react';
+import { Link2, Unlink, Monitor, Tablet, Smartphone, Image as ImageIcon, Sparkles, Upload, Plus, Trash2, Copy, ChevronDown, ChevronUp, Layers, Film } from 'lucide-react';
 import MediaPickerModal from '../../components/MediaPickerModal';
+import { getMediaUrl } from '../../utils/media';
 
 export function SpacingControl({ label = 'Spacing', value = {}, onChange, unit = 'px' }) {
   const [isLinked, setIsLinked] = useState(true);
@@ -234,6 +235,17 @@ export function BorderControl({ value = {}, onChange }) {
 export function ImageControl({ label = 'Image', value = '', onChange, onAltChange, altValue = '' }) {
   const [modalOpen, setModalOpen] = useState(false);
 
+  const isVideoUrl = (url) => {
+    if (!url || typeof url !== 'string') return false;
+    const clean = url.split('?')[0].toLowerCase();
+    return clean.endsWith('.mp4') || clean.endsWith('.webm') || clean.endsWith('.mov') || 
+           clean.endsWith('.mkv') || clean.endsWith('.avi') || clean.endsWith('.m4v') || 
+           clean.endsWith('.ogv') || clean.endsWith('.wmv') || clean.endsWith('.flv') || 
+           clean.endsWith('.3gp') || clean.includes('youtube.com') || clean.includes('youtu.be') || clean.includes('vimeo.com');
+  };
+
+  const isVideo = isVideoUrl(value);
+
   return (
     <div className="form-group" style={{ marginBottom: '16px' }}>
       <label className="form-label">{label}</label>
@@ -251,12 +263,34 @@ export function ImageControl({ label = 'Image', value = '', onChange, onAltChang
           <div style={{
             position: 'relative',
             width: '100%',
-            height: '120px',
+            height: '130px',
             borderRadius: 'var(--radius-sm)',
             overflow: 'hidden',
-            background: 'var(--bg-surface-elevated)'
+            background: 'var(--bg-surface-elevated)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
           }}>
-            <img src={value} alt={altValue || 'Widget image'} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+            {isVideo ? (
+              <video
+                src={getMediaUrl(value)}
+                controls
+                controlsList="nodownload noplaybackrate"
+                disablePictureInPicture
+                muted
+                preload="metadata"
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+              />
+            ) : (
+              <img
+                src={getMediaUrl(value)}
+                alt={altValue || 'Widget preview'}
+                style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                }}
+              />
+            )}
           </div>
         ) : (
           <div style={{
@@ -270,7 +304,7 @@ export function ImageControl({ label = 'Image', value = '', onChange, onAltChang
             borderRadius: 'var(--radius-sm)'
           }}>
             <ImageIcon size={24} style={{ marginBottom: '4px', opacity: 0.6 }} />
-            <span style={{ fontSize: '12px' }}>No image selected</span>
+            <span style={{ fontSize: '12px' }}>No media selected</span>
           </div>
         )}
 
@@ -282,7 +316,7 @@ export function ImageControl({ label = 'Image', value = '', onChange, onAltChang
             style={{ flex: 1, padding: '6px 12px', fontSize: '12px' }}
           >
             <Upload size={14} />
-            <span>{value ? 'Change Image' : 'Select Image'}</span>
+            <span>{value ? (isVideo ? 'Change Video' : 'Change Image') : 'Select Media / Video'}</span>
           </button>
 
           {value && (
@@ -297,7 +331,19 @@ export function ImageControl({ label = 'Image', value = '', onChange, onAltChang
           )}
         </div>
 
-        {onAltChange && (
+        {/* URL Direct Input */}
+        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+          <input
+            type="text"
+            className="form-input"
+            style={{ fontSize: '11px', padding: '5px 8px' }}
+            placeholder="Or enter media / embed URL..."
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+          />
+        </div>
+
+        {onAltChange && !isVideo && (
           <input
             type="text"
             className="form-input"
@@ -385,6 +431,179 @@ export function ResponsiveControl({ label, value = {}, onChange, controlType = '
         value={rawVal}
         onChange={(e) => handleChange(e.target.value)}
       />
+    </div>
+  );
+}
+
+export function RepeaterControl({ label = 'Items', value = [], onChange, itemLabel = 'Item', fields = [], defaultItem = {} }) {
+  const [openIdx, setOpenIdx] = useState(0);
+
+  const items = Array.isArray(value) ? value : [];
+
+  const handleAdd = () => {
+    const newItem = { ...defaultItem };
+    const updated = [...items, newItem];
+    onChange(updated);
+    setOpenIdx(updated.length - 1);
+  };
+
+  const handleRemove = (idx, e) => {
+    e.stopPropagation();
+    if (items.length <= 1) {
+      alert('At least one item is required.');
+      return;
+    }
+    const updated = items.filter((_, i) => i !== idx);
+    onChange(updated);
+    if (openIdx >= updated.length) {
+      setOpenIdx(updated.length - 1);
+    }
+  };
+
+  const handleDuplicate = (idx, e) => {
+    e.stopPropagation();
+    const cloned = { ...items[idx] };
+    const updated = [...items];
+    updated.splice(idx + 1, 0, cloned);
+    onChange(updated);
+    setOpenIdx(idx + 1);
+  };
+
+  const handleFieldChange = (itemIdx, fieldName, val) => {
+    const updated = items.map((item, idx) => {
+      if (idx === itemIdx) {
+        return { ...item, [fieldName]: val };
+      }
+      return item;
+    });
+    onChange(updated);
+  };
+
+  return (
+    <div className="form-group" style={{ marginBottom: '18px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <label className="form-label" style={{ margin: 0, fontWeight: '700' }}>{label} ({items.length})</label>
+        <button
+          type="button"
+          onClick={handleAdd}
+          className="btn btn-primary"
+          style={{ padding: '4px 10px', fontSize: '11px', gap: '4px' }}
+        >
+          <Plus size={13} />
+          <span>+ Add {itemLabel}</span>
+        </button>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        {items.map((item, idx) => {
+          const isOpen = openIdx === idx;
+          const displayTitle = item.title || item.tab || item.q || item.feat || item.name || item.num || `${itemLabel} #${idx + 1}`;
+
+          return (
+            <div
+              key={idx}
+              style={{
+                border: isOpen ? '1px solid var(--primary)' : '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--bg-surface)',
+                overflow: 'hidden',
+                transition: 'border-color 150ms ease'
+              }}
+            >
+              {/* Item Header */}
+              <div
+                onClick={() => setOpenIdx(isOpen ? -1 : idx)}
+                style={{
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  background: isOpen ? 'var(--bg-surface-elevated)' : 'transparent',
+                  userSelect: 'none'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: '700', color: isOpen ? 'var(--primary)' : '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  <span style={{ opacity: 0.6, fontSize: '11px' }}>#{idx + 1}</span>
+                  <span>{displayTitle}</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                  <button
+                    type="button"
+                    onClick={(e) => handleDuplicate(idx, e)}
+                    title="Duplicate item"
+                    style={{ background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', padding: '3px' }}
+                  >
+                    <Copy size={13} />
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemove(idx, e)}
+                    title="Delete item"
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-rose)', cursor: 'pointer', padding: '3px' }}
+                  >
+                    <Trash2 size={13} />
+                  </button>
+
+                  <ChevronDown size={14} style={{ transform: isOpen ? 'rotate(180deg)' : 'none', color: 'var(--text-dim)', transition: 'transform 150ms ease' }} />
+                </div>
+              </div>
+
+              {/* Item Body (Fields) */}
+              {isOpen && (
+                <div style={{ padding: '14px', borderTop: '1px solid var(--border-subtle)', display: 'flex', flexDirection: 'column', gap: '12px', background: 'rgba(15, 23, 42, 0.5)' }}>
+                  {fields.map((f) => {
+                    const fVal = item[f.name] !== undefined ? item[f.name] : (f.default || '');
+
+                    if (f.type === 'image') {
+                      return (
+                        <ImageControl
+                          key={f.name}
+                          label={f.label}
+                          value={fVal}
+                          onChange={(val) => handleFieldChange(idx, f.name, val)}
+                        />
+                      );
+                    }
+
+                    if (f.type === 'textarea') {
+                      return (
+                        <div key={f.name} className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontSize: '11px' }}>{f.label}</label>
+                          <textarea
+                            className="form-input"
+                            rows={f.rows || 3}
+                            value={fVal}
+                            placeholder={f.placeholder}
+                            onChange={(e) => handleFieldChange(idx, f.name, e.target.value)}
+                            style={{ fontSize: '12px' }}
+                          />
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div key={f.name} className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '11px' }}>{f.label}</label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          value={fVal}
+                          placeholder={f.placeholder}
+                          onChange={(e) => handleFieldChange(idx, f.name, e.target.value)}
+                          style={{ fontSize: '12px' }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

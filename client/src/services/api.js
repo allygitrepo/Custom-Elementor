@@ -2,7 +2,25 @@
  * LightBuilder - REST API Client Service
  */
 
-const API_BASE = '/api';
+function getApiBase() {
+  // If running in Vite dev mode (port 5173), use '/api' to leverage Vite proxy
+  if (typeof window !== 'undefined' && window.location.port === '5173') {
+    return '/api';
+  }
+
+  // In production builds, determine the base path dynamically from the current location
+  if (typeof window !== 'undefined') {
+    let pathname = window.location.pathname || '';
+    // Strip trailing filename like index.html if present
+    if (/\.[a-zA-Z0-9]+$/.test(pathname)) {
+      pathname = pathname.substring(0, pathname.lastIndexOf('/'));
+    }
+    pathname = pathname.replace(/\/+$/, '');
+    return `${pathname}/api`;
+  }
+
+  return '/api';
+}
 
 class ApiClient {
   constructor() {
@@ -19,7 +37,8 @@ class ApiClient {
   }
 
   async request(endpoint, options = {}) {
-    const url = `${API_BASE}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+    const apiBase = getApiBase();
+    const url = `${apiBase}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
     
     const headers = {
       ...(options.headers || {})
@@ -41,15 +60,20 @@ class ApiClient {
 
     try {
       const response = await fetch(url, config);
-      const text = await response.text();
+      const rawText = await response.text();
+      const text = rawText ? rawText.trim() : '';
       
       let data = {};
       try {
         data = text ? JSON.parse(text) : {};
       } catch (e) {
-        if (!response.ok) {
-          throw new Error(`Server returned HTTP ${response.status} (${response.statusText}). Make sure the PHP backend is running with "npm start".`);
+        if (text.startsWith('<') || text.includes('<!DOCTYPE') || text.includes('<html')) {
+          throw new Error('API returned an HTML document instead of JSON. Check that .htaccess routes /api to server/index.php.');
         }
+        if (!response.ok) {
+          throw new Error(`Server returned HTTP ${response.status} (${response.statusText}).`);
+        }
+        console.error('Invalid server response text:', rawText);
         throw new Error('Invalid response format received from server.');
       }
 

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
+import { getPublishedUrl } from '../utils/media';
 import { 
   ArrowLeft, 
   Plus, 
@@ -121,17 +122,12 @@ export default function PagesPage() {
 
   const getPagePublishedUrl = (pageSlug) => {
     if (!website?.slug) return '#';
-    const filename = (pageSlug === 'home' || pageSlug === 'index') ? 'index.html' : `${pageSlug}.html`;
-    const protocol = window.location.protocol;
-    const host = window.location.port === '5173' ? '127.0.0.1:8000' : window.location.host;
-    return `${protocol}//${host}/published/${website.slug}/${filename}`;
+    return getPublishedUrl(website.slug, pageSlug);
   };
 
   const getSitePublishedUrl = () => {
     if (!website?.slug) return '#';
-    const protocol = window.location.protocol;
-    const host = window.location.port === '5173' ? '127.0.0.1:8000' : window.location.host;
-    return `${protocol}//${host}/published/${website.slug}/index.html`;
+    return getPublishedUrl(website.slug, 'index.html');
   };
 
   return (
@@ -419,9 +415,7 @@ export default function PagesPage() {
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   {publishedData.pages.map((p) => {
-                    const protocol = window.location.protocol;
-                    const host = window.location.port === '5173' ? '127.0.0.1:8000' : window.location.host;
-                    const pUrl = `${protocol}//${host}/published/${publishedData.website_slug}/${p.filename}`;
+                    const pUrl = getPublishedUrl(publishedData.website_slug, p.filename);
                     return (
                       <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '13px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

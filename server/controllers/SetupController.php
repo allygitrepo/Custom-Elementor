@@ -18,9 +18,9 @@ class SetupController {
         // System checks
         $phpVersion = PHP_VERSION;
         $phpOk = version_compare($phpVersion, '8.1.0', '>=');
-        $sqliteOk = extension_loaded('pdo_sqlite') && extension_loaded('sqlite3');
-        $storageWritable = is_writable(STORAGE_PATH);
-        $uploadsWritable = is_writable(UPLOADS_PATH);
+        $sqliteOk = extension_loaded('pdo_sqlite') || extension_loaded('sqlite3');
+        $storageWritable = is_writable(STORAGE_PATH) || is_writable(ROOT_PATH);
+        $uploadsWritable = is_writable(UPLOADS_PATH) || is_writable(ROOT_PATH);
 
         $systemRequirements = [
             'php' => [

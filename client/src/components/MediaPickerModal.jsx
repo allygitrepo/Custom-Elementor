@@ -8,14 +8,19 @@ import {
   X, 
   Loader2, 
   Search,
-  HardDrive
+  HardDrive,
+  Film,
+  FileText,
+  Music
 } from 'lucide-react';
+import { getMediaUrl } from '../utils/media';
 
 export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUrl }) {
   const [mediaItems, setMediaItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [search, setSearch] = useState('');
+  const [filterType, setFilterType] = useState('all'); // all, image, video, other
   const [activeItem, setActiveItem] = useState(null);
   const [error, setError] = useState('');
   const fileInputRef = useRef(null);
@@ -77,33 +82,85 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
     }
   };
 
-  const filteredItems = mediaItems.filter(m => 
-    m.original_name.toLowerCase().includes(search.toLowerCase()) ||
-    m.filename.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredItems = mediaItems.filter(m => {
+    const matchesSearch = m.original_name.toLowerCase().includes(search.toLowerCase()) ||
+      m.filename.toLowerCase().includes(search.toLowerCase());
+    
+    if (!matchesSearch) return false;
+
+    if (filterType === 'image') return m.file_type?.startsWith('image/');
+    if (filterType === 'video') return m.file_type?.startsWith('video/');
+    if (filterType === 'other') return !m.file_type?.startsWith('image/') && !m.file_type?.startsWith('video/');
+    return true;
+  });
 
   const formatSize = (bytes) => {
+    if (!bytes) return '0 B';
     if (bytes < 1024) return bytes + ' B';
     if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  };
+
+  const renderMediaThumbnail = (item) => {
+    const isVideo = item.file_type?.startsWith('video/');
+    const isAudio = item.file_type?.startsWith('audio/');
+    const isPdf = item.file_type === 'application/pdf';
+
+    if (isVideo) {
+      return (
+        <div style={{ width: '100%', height: '100%', position: 'relative', background: '#070a0f', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <video src={getMediaUrl(item.file_url)} style={{ width: '100%', height: '100%', objectFit: 'cover' }} muted preload="metadata" />
+          <div style={{ position: 'absolute', bottom: '6px', left: '6px', background: 'rgba(0,0,0,0.8)', color: '#38bdf8', padding: '2px 6px', borderRadius: '4px', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <Film size={11} />
+            <span>Video</span>
+          </div>
+        </div>
+      );
+    }
+
+    if (isAudio) {
+      return (
+        <div style={{ width: '100%', height: '100%', background: '#0d2b5e', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#38bdf8', gap: '6px' }}>
+          <Music size={28} />
+          <span style={{ fontSize: '10px' }}>Audio</span>
+        </div>
+      );
+    }
+
+    if (isPdf) {
+      return (
+        <div style={{ width: '100%', height: '100%', background: '#1e293b', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#f43f5e', gap: '6px' }}>
+          <FileText size={28} />
+          <span style={{ fontSize: '10px' }}>PDF</span>
+        </div>
+      );
+    }
+
+    return (
+      <img
+        src={getMediaUrl(item.file_url)}
+        alt={item.original_name}
+        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+      />
+    );
   };
 
   return (
     <div style={{
       position: 'fixed',
       inset: 0,
-      background: 'rgba(0, 0, 0, 0.8)',
+      background: 'rgba(0, 0, 0, 0.85)',
       backdropFilter: 'blur(8px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       padding: '24px',
-      zIndex: 200
+      zIndex: 300
     }}>
       <div className="glass-card" style={{
-        maxWidth: '960px',
+        maxWidth: '1020px',
         width: '100%',
-        height: '80vh',
+        height: '82vh',
         display: 'flex',
         flexDirection: 'column',
         overflow: 'hidden',
@@ -119,8 +176,8 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
-              width: '32px',
-              height: '32px',
+              width: '34px',
+              height: '34px',
               borderRadius: '8px',
               background: 'rgba(56, 189, 248, 0.15)',
               display: 'flex',
@@ -131,8 +188,8 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
               <ImageIcon size={18} />
             </div>
             <div>
-              <h2 style={{ fontSize: '18px', fontWeight: '800' }}>Media Library</h2>
-              <p style={{ color: 'var(--text-dim)', fontSize: '12px' }}>Upload and select image assets</p>
+              <h2 style={{ fontSize: '17px', fontWeight: '800', margin: 0 }}>Media Library</h2>
+              <p style={{ color: 'var(--text-dim)', fontSize: '12px', margin: 0 }}>Upload and select image, video, or audio assets</p>
             </div>
           </div>
 
@@ -141,7 +198,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
               type="file"
               ref={fileInputRef}
               onChange={handleFileUpload}
-              accept="image/*"
+              accept="image/*,video/*,audio/*,.pdf"
               style={{ display: 'none' }}
             />
 
@@ -158,7 +215,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
               ) : (
                 <>
                   <Upload size={16} />
-                  <span>Upload Image</span>
+                  <span>Upload Media / Video</span>
                 </>
               )}
             </button>
@@ -189,22 +246,52 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           {/* Main Grid Area */}
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', padding: '16px 24px' }}>
-            {/* Search */}
-            <div style={{ position: 'relative', marginBottom: '16px' }}>
-              <input
-                type="text"
-                className="form-input"
-                style={{ paddingLeft: '36px' }}
-                placeholder="Search images by name..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <Search size={16} color="var(--text-dim)" style={{
-                position: 'absolute',
-                left: '12px',
-                top: '50%',
-                transform: 'translateY(-50%)'
-              }} />
+            
+            {/* Search & Filter Bar */}
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '16px' }}>
+              <div style={{ position: 'relative', flex: 1 }}>
+                <input
+                  type="text"
+                  className="form-input"
+                  style={{ paddingLeft: '36px' }}
+                  placeholder="Search media files by name..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <Search size={16} color="var(--text-dim)" style={{
+                  position: 'absolute',
+                  left: '12px',
+                  top: '50%',
+                  transform: 'translateY(-50%)'
+                }} />
+              </div>
+
+              {/* Filter Pills */}
+              <div style={{ display: 'flex', gap: '4px', background: 'var(--bg-surface-elevated)', padding: '3px', borderRadius: '8px' }}>
+                {[
+                  { key: 'all', label: 'All' },
+                  { key: 'image', label: 'Images' },
+                  { key: 'video', label: 'Videos' },
+                  { key: 'other', label: 'Docs' }
+                ].map((tab) => (
+                  <button
+                    key={tab.key}
+                    onClick={() => setFilterType(tab.key)}
+                    style={{
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      border: 'none',
+                      background: filterType === tab.key ? 'var(--primary)' : 'transparent',
+                      color: filterType === tab.key ? '#070a0f' : 'var(--text-muted)',
+                      fontSize: '12px',
+                      fontWeight: '700',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {/* Gallery Grid */}
@@ -232,7 +319,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
                 }}>
                   <ImageIcon size={36} style={{ margin: '0 auto 8px', opacity: 0.5 }} />
                   <p style={{ fontSize: '14px' }}>No media assets found</p>
-                  <p style={{ fontSize: '12px', marginTop: '4px' }}>Click "Upload Image" to add files.</p>
+                  <p style={{ fontSize: '12px', marginTop: '4px' }}>Click "Upload Media / Video" to upload files.</p>
                 </div>
               ) : (
                 filteredItems.map(item => {
@@ -258,11 +345,8 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
                         transition: 'border-color var(--transition-fast)'
                       }}
                     >
-                      <img
-                        src={item.file_url}
-                        alt={item.original_name}
-                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                      />
+                      {renderMediaThumbnail(item)}
+
                       {isSelected && (
                         <div style={{
                           position: 'absolute',
@@ -275,7 +359,8 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
                           color: '#0f172a',
                           display: 'flex',
                           alignItems: 'center',
-                          justifyContent: 'center'
+                          justifyContent: 'center',
+                          zIndex: 10
                         }}>
                           <Check size={14} strokeWidth={3} />
                         </div>
@@ -290,7 +375,7 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
           {/* Details Sidebar */}
           {activeItem && (
             <div style={{
-              width: '280px',
+              width: '290px',
               borderLeft: '1px solid var(--border-subtle)',
               background: 'var(--bg-surface)',
               padding: '20px',
@@ -309,14 +394,22 @@ export default function MediaPickerModal({ isOpen, onClose, onSelect, selectedUr
                   marginBottom: '16px',
                   border: '1px solid var(--border-subtle)'
                 }}>
-                  <img
-                    src={activeItem.file_url}
-                    alt={activeItem.original_name}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
+                  {activeItem.file_type?.startsWith('video/') ? (
+                    <video
+                      src={getMediaUrl(activeItem.file_url)}
+                      controls
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  ) : (
+                    <img
+                      src={getMediaUrl(activeItem.file_url)}
+                      alt={activeItem.original_name}
+                      style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    />
+                  )}
                 </div>
 
-                <h4 style={{ fontSize: '14px', fontWeight: '700', wordBreak: 'break-all', marginBottom: '8px' }}>
+                <h4 style={{ fontSize: '13px', fontWeight: '700', wordBreak: 'break-all', marginBottom: '8px' }}>
                   {activeItem.original_name}
                 </h4>
 

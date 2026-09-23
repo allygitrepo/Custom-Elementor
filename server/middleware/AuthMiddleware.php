@@ -33,7 +33,12 @@ class AuthMiddleware {
 
         // 2. Check Authorization Header Bearer token if session not found
         if (!$userId) {
-            $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+            $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '';
+            if (empty($authHeader) && function_exists('apache_request_headers')) {
+                $headers = apache_request_headers();
+                $authHeader = $headers['Authorization'] ?? $headers['authorization'] ?? '';
+            }
+
             if (preg_match('/Bearer\s+(.*)$/i', $authHeader, $matches)) {
                 $token = trim($matches[1]);
                 $tokenParts = explode(':', base64_decode($token));

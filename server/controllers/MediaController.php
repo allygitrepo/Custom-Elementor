@@ -20,17 +20,11 @@ class MediaController {
             $stmt->execute([$user['id']]);
             $media = $stmt->fetchAll();
 
-            // Append full URL if needed
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            
-            // Build base URL for uploads
-            $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
-            $baseUrl = rtrim($protocol . $host . $scriptDir, '/');
-
             foreach ($media as &$item) {
+                // Ensure canonical format /uploads/filename.ext
                 if (!filter_var($item['file_url'], FILTER_VALIDATE_URL)) {
-                    $item['file_url'] = $baseUrl . '/' . ltrim($item['file_url'], '/');
+                    $fn = basename($item['file_url'] ?: ($item['filename'] ?? ''));
+                    $item['file_url'] = '/uploads/' . $fn;
                 }
             }
 
@@ -44,50 +38,120 @@ class MediaController {
         $user = AuthMiddleware::requireAuth();
 
         if (empty($_FILES['file'])) {
-            Response::error('No file was uploaded.');
+            $contentLength = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+            $postMaxSize = ini_get('post_max_size') ?: '1024M';
+            if ($contentLength > 0) {
+                Response::error("The uploaded file exceeds the server post_max_size limit ({$postMaxSize}). Please check PHP settings or upload a smaller file.", 413);
+            }
+            Response::error('No file was uploaded.', 400);
         }
 
         $file = $_FILES['file'];
 
         if ($file['error'] !== UPLOAD_ERR_OK) {
-            Response::error('File upload error code: ' . $file['error']);
+            $errorMessages = [
+                UPLOAD_ERR_INI_SIZE => 'File exceeds upload_max_filesize in php.ini (' . (ini_get('upload_max_filesize') ?: '1024M') . ').',
+                UPLOAD_ERR_FORM_SIZE => 'File exceeds MAX_FILE_SIZE specified in form.',
+                UPLOAD_ERR_PARTIAL => 'File was only partially uploaded.',
+                UPLOAD_ERR_NO_FILE => 'No file was uploaded.',
+                UPLOAD_ERR_NO_TMP_DIR => 'Missing temporary folder on server.',
+                UPLOAD_ERR_CANT_WRITE => 'Failed to write file to disk.',
+                UPLOAD_ERR_EXTENSION => 'A PHP extension stopped the file upload.'
+            ];
+            $msg = $errorMessages[$file['error']] ?? ('Upload error code: ' . $file['error']);
+            Response::error($msg, 400);
         }
 
-        // Limit size to 10MB
-        if ($file['size'] > 10 * 1024 * 1024) {
-            Response::error('File size exceeds maximum limit of 10MB.');
+        // Limit size to 1GB (1024MB)
+        $maxSizeBytes = 1024 * 1024 * 1024;
+        if ($file['size'] > $maxSizeBytes) {
+            Response::error('File size exceeds maximum limit of 1GB.', 413);
         }
 
-        $allowedTypes = [
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/gif' => 'gif',
-            'image/webp' => 'webp',
-            'image/svg+xml' => 'svg'
+        $extMap = [
+            'jpg' => 'image/jpeg',
+            'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'gif' => 'image/gif',
+            'webp' => 'image/webp',
+            'svg' => 'image/svg+xml',
+            'ico' => 'image/x-icon',
+            'bmp' => 'image/bmp',
+            'avif' => 'image/avif',
+            'mp4' => 'video/mp4',
+            'webm' => 'video/webm',
+            'ogg' => 'video/ogg',
+            'ogv' => 'video/ogg',
+            'mov' => 'video/quicktime',
+            'm4v' => 'video/x-m4v',
+            'mkv' => 'video/x-matroska',
+            'avi' => 'video/x-msvideo',
+            'wmv' => 'video/x-ms-wmv',
+            'flv' => 'video/x-flv',
+            '3gp' => 'video/3gpp',
+            'mp3' => 'audio/mpeg',
+            'wav' => 'audio/wav',
+            'm4a' => 'audio/mp4',
+            'aac' => 'audio/aac',
+            'flac' => 'audio/flac',
+            'opus' => 'audio/opus',
+            'oga' => 'audio/ogg',
+            'pdf' => 'application/pdf',
+            'doc' => 'application/msword',
+            'docx' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+            'txt' => 'text/plain',
+            'csv' => 'text/csv',
+            'zip' => 'application/zip',
+            'woff' => 'font/woff',
+            'woff2' => 'font/woff2',
+            'ttf' => 'font/ttf',
+            'otf' => 'font/otf'
         ];
 
-        $finfo = finfo_open(FILEINFO_MIME_TYPE);
-        $mime = finfo_file($finfo, $file['tmp_name']);
-        finfo_close($finfo);
-
-        if (!isset($allowedTypes[$mime])) {
-            Response::error('Invalid file type. Only JPEG, PNG, GIF, WebP, and SVG images are allowed.');
+        $rawExt = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+        
+        $mime = 'application/octet-stream';
+        if (!empty($file['tmp_name']) && file_exists($file['tmp_name']) && function_exists('finfo_open')) {
+            $finfo = finfo_open(FILEINFO_MIME_TYPE);
+            if ($finfo) {
+                $detectedMime = finfo_file($finfo, $file['tmp_name']);
+                if ($detectedMime) {
+                    $mime = $detectedMime;
+                }
+                finfo_close($finfo);
+            }
         }
 
-        $ext = $allowedTypes[$mime];
+        if (!isset($extMap[$rawExt])) {
+            Response::error('Invalid file type. Supported formats: Images (JPG, PNG, GIF, WebP, SVG, AVIF, ICO), Videos (MP4, WebM, MOV, MKV, AVI, WMV, FLV, 3GP), Audio (MP3, WAV, M4A, AAC, FLAC, OPUS), Documents (PDF, DOC, DOCX, TXT, CSV, ZIP).', 400);
+        }
+
+        $ext = $rawExt;
+        if (isset($extMap[$rawExt])) {
+            $mime = $extMap[$rawExt];
+        }
+
+        // Ensure upload directory exists
+        if (!is_dir(UPLOADS_PATH)) {
+            @mkdir(UPLOADS_PATH, 0777, true);
+        }
+
         $originalName = pathinfo($file['name'], PATHINFO_FILENAME);
         $sanitizedName = preg_replace('/[^a-zA-Z0-9_-]/', '_', $originalName);
+        if (empty($sanitizedName)) {
+            $sanitizedName = 'media';
+        }
         $filename = $sanitizedName . '_' . uniqid() . '.' . $ext;
 
         $targetPath = UPLOADS_PATH . '/' . $filename;
 
         if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-            Response::error('Failed to save uploaded file on server.', 500);
+            Response::error('Failed to save uploaded file to destination. Check directory write permissions.', 500);
         }
 
         $width = null;
         $height = null;
-        if ($mime !== 'image/svg+xml') {
+        if (str_starts_with($mime, 'image/') && $mime !== 'image/svg+xml') {
             $imgInfo = @getimagesize($targetPath);
             if ($imgInfo) {
                 $width = $imgInfo[0];
@@ -95,7 +159,7 @@ class MediaController {
             }
         }
 
-        $fileUrl = 'uploads/' . $filename;
+        $fileUrl = '/uploads/' . $filename;
 
         try {
             $db = Database::getConnection();
@@ -117,16 +181,10 @@ class MediaController {
             $fetch->execute([$mediaId]);
             $media = $fetch->fetch();
 
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? "https://" : "http://";
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $scriptDir = dirname($_SERVER['SCRIPT_NAME'] ?? '');
-            $baseUrl = rtrim($protocol . $host . $scriptDir, '/');
-            $media['file_url'] = $baseUrl . '/' . ltrim($media['file_url'], '/');
-
             Response::success($media, 'File uploaded successfully', 201);
         } catch (Exception $e) {
             @unlink($targetPath);
-            Response::error('Failed to save media metadata: ' . $e->getMessage(), 500);
+            Response::error('Failed to save media record: ' . $e->getMessage(), 500);
         }
     }
 
@@ -144,8 +202,10 @@ class MediaController {
                 Response::notFound('Media item not found');
             }
 
-            // Remove file from disk
-            if (file_exists($media['filepath'])) {
+            $targetFilePath = UPLOADS_PATH . '/' . $media['filename'];
+            if (file_exists($targetFilePath)) {
+                @unlink($targetFilePath);
+            } elseif (!empty($media['filepath']) && file_exists($media['filepath'])) {
                 @unlink($media['filepath']);
             }
 

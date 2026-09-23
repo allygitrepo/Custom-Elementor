@@ -72,9 +72,11 @@ class PageController {
                     'direction' => 'column',
                     'align' => 'center',
                     'justify' => 'center',
-                    'padding' => ['top' => '60px', 'right' => '24px', 'bottom' => '60px', 'left' => '24px'],
-                    'background' => '#ffffff',
-                    'minHeight' => '50vh'
+                    'padding' => ['top' => '0px', 'right' => '0px', 'bottom' => '0px', 'left' => '0px'],
+                    'margin' => ['top' => '0px', 'right' => '0px', 'bottom' => '0px', 'left' => '0px'],
+                    'gap' => '0px',
+                    'background' => '#070a0f',
+                    'minHeight' => '100vh'
                 ],
                 'children' => [
                     [
@@ -84,8 +86,9 @@ class PageController {
                             'text' => $title,
                             'tag' => 'h1',
                             'align' => 'center',
-                            'color' => '#0f172a',
-                            'fontSize' => ['desktop' => '40px', 'tablet' => '32px', 'mobile' => '26px']
+                            'color' => '#ffffff',
+                            'fontSize' => ['desktop' => '40px', 'tablet' => '32px', 'mobile' => '26px'],
+                            'fontWeight' => '800'
                         ],
                         'children' => []
                     ]

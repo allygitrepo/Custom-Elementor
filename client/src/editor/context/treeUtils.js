@@ -36,6 +36,30 @@ export function findParentById(tree, childId) {
   return null;
 }
 
+export function getBreadcrumbs(tree, elementId) {
+  const path = [];
+  function traverse(node, targetId, currentPath) {
+    if (!node) return false;
+    const newPath = [...currentPath, { 
+      id: node.id, 
+      type: node.type, 
+      name: WIDGET_REGISTRY[node.type]?.name || (node.id === 'root' ? 'Page Root' : node.type) 
+    }];
+    if (node.id === targetId) {
+      path.push(...newPath);
+      return true;
+    }
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) {
+        if (traverse(child, targetId, newPath)) return true;
+      }
+    }
+    return false;
+  }
+  traverse(tree, elementId, []);
+  return path;
+}
+
 export function updateElementSettingsInTree(tree, elementId, newSettings) {
   if (tree.id === elementId) {
     return {
@@ -76,6 +100,17 @@ export function addElementToTree(tree, parentId, newElement, targetIndex = -1) {
   }
 
   return tree;
+}
+
+export function addSiblingToTree(tree, targetId, newElement, position = 'after') {
+  const parent = findParentById(tree, targetId);
+  if (!parent) return tree;
+
+  const targetIndex = parent.children.findIndex(c => c.id === targetId);
+  if (targetIndex === -1) return tree;
+
+  const insertIndex = position === 'before' ? targetIndex : targetIndex + 1;
+  return addElementToTree(tree, parent.id, newElement, insertIndex);
 }
 
 export function deleteElementFromTree(tree, elementId) {
@@ -126,9 +161,47 @@ export function moveElementInTree(tree, elementId, targetParentId, targetIndex =
   const target = findElementById(tree, elementId);
   if (!target) return tree;
 
+  // Prevent moving into itself or descendant
+  if (elementId === targetParentId || isDescendant(target, targetParentId)) {
+    return tree;
+  }
+
   // 1. Remove from old position
   const treeWithoutElement = deleteElementFromTree(tree, elementId);
 
   // 2. Add to target position
   return addElementToTree(treeWithoutElement, targetParentId, target, targetIndex);
+}
+
+export function isDescendant(parentSubtree, searchId) {
+  if (!parentSubtree || !Array.isArray(parentSubtree.children)) return false;
+  for (const child of parentSubtree.children) {
+    if (child.id === searchId || isDescendant(child, searchId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const STYLE_KEYS = [
+  'background', 'color', 'fontSize', 'fontWeight', 'lineHeight', 'letterSpacing',
+  'textAlign', 'textTransform', 'padding', 'margin', 'borderRadius', 'borderWidth',
+  'borderColor', 'borderStyle', 'boxShadow', 'gap', 'opacity'
+];
+
+export function extractStyleSettings(settings = {}) {
+  const styles = {};
+  for (const key of STYLE_KEYS) {
+    if (settings[key] !== undefined) {
+      styles[key] = JSON.parse(JSON.stringify(settings[key]));
+    }
+  }
+  return styles;
+}
+
+export function applyStyleSettings(currentSettings = {}, sourceStyles = {}) {
+  return {
+    ...currentSettings,
+    ...JSON.parse(JSON.stringify(sourceStyles))
+  };
 }

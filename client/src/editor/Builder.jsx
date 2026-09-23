@@ -8,7 +8,7 @@ import Canvas from './canvas/Canvas';
 import { Loader2 } from 'lucide-react';
 
 function BuilderContent() {
-  const { loading, previewMode } = useEditor();
+  const { loading, previewMode, focusMode } = useEditor();
 
   if (loading) {
     return (
@@ -42,13 +42,13 @@ function BuilderContent() {
       {/* Main Studio Area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         {/* Left Sidebar (Widgets & Navigator) */}
-        {!previewMode && <LeftSidebar />}
+        {!previewMode && !focusMode && <LeftSidebar />}
 
         {/* Visual Canvas Viewport */}
         <Canvas />
 
         {/* Right Sidebar (Settings & Controls) */}
-        {!previewMode && <RightSidebar />}
+        {!previewMode && !focusMode && <RightSidebar />}
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
  * LightBuilder - Lightweight REST Router
  */
 
-namespace LightBuilder\Api;
+namespace LightBuilder\Core;
 
 use LightBuilder\Middleware\Response;
 use Exception;
@@ -50,18 +50,22 @@ class Router {
         $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
 
         // Normalize URL relative to API base path
-        $scriptName = dirname($_SERVER['SCRIPT_NAME'] ?? '');
-        $uri = $requestUri;
-
-        if ($scriptName !== '/' && $scriptName !== '\\' && strpos($uri, $scriptName) === 0) {
-            $uri = substr($uri, strlen($scriptName));
+        $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
+        if ($scriptDir === '/' || $scriptDir === '\\' || $scriptDir === '.') {
+            $scriptDir = '';
         }
 
-        $uri = '/' . trim($uri, '/');
+        $uri = str_replace('\\', '/', $requestUri);
 
-        // Also normalize /api prefix if present
-        if (strpos($uri, '/api') === 0) {
-            $uri = substr($uri, 4);
+        // If this is an API call, strip any leading subfolder path directly to the API endpoint
+        $apiPos = strpos($uri, '/api');
+        if ($apiPos !== false) {
+            $uri = substr($uri, $apiPos + 4);
+            $uri = '/' . trim($uri, '/');
+        } elseif (!empty($scriptDir) && strpos($uri, $scriptDir) === 0) {
+            $uri = substr($uri, strlen($scriptDir));
+            $uri = '/' . trim($uri, '/');
+        } else {
             $uri = '/' . trim($uri, '/');
         }
 
@@ -118,6 +122,27 @@ class Router {
         }
 
         if (!$matched) {
+            $rawUri = $_SERVER['REQUEST_URI'] ?? '/';
+            $isApiCall = (strpos($rawUri, '/api/') !== false || strpos($rawUri, '/api') === 0 || strpos($uri, '/api') === 0);
+
+            // If this is a frontend GET navigation (not an API call), check for SPA index.html
+            if ($requestMethod === 'GET' && !$isApiCall) {
+                $possibleIndexFiles = [
+                    ROOT_PATH . '/index.html',
+                    __DIR__ . '/../index.html',
+                    ROOT_PATH . '/dist/index.html',
+                    dirname(ROOT_PATH) . '/client/dist/index.html'
+                ];
+
+                foreach ($possibleIndexFiles as $spaIndex) {
+                    if (is_file($spaIndex)) {
+                        header('Content-Type: text/html; charset=utf-8');
+                        readfile($spaIndex);
+                        return;
+                    }
+                }
+            }
+
             Response::notFound("Endpoint not found: [{$requestMethod}] {$uri}");
         }
     }

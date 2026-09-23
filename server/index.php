@@ -3,6 +3,9 @@
  * LightBuilder V1 - Front Controller & REST API Gateway
  */
 
+// Start output buffering early to prevent any stray output or notices before JSON response
+ob_start();
+
 // If running via PHP CLI built-in web server and requested file exists, serve it directly
 if (php_sapi_name() === 'cli-server') {
     $uri = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH);
@@ -57,7 +60,7 @@ spl_autoload_register(function ($class) {
     }
 });
 
-use LightBuilder\Api\Router;
+use LightBuilder\Core\Router;
 use LightBuilder\Middleware\CorsMiddleware;
 use LightBuilder\Controllers\SetupController;
 use LightBuilder\Controllers\AuthController;
@@ -107,6 +110,7 @@ $router->get('/pages/{id}/preview', [PublishController::class, 'previewPage']);
 // Published static site serving routes
 $router->get('/published/{slug}', [PublishController::class, 'servePublished']);
 $router->get('/published/{slug}/{file}', [PublishController::class, 'servePublished']);
+$router->get('/published/{slug}/uploads/{file}', [PublishController::class, 'servePublished']);
 
 // Media routes
 $router->get('/media', [MediaController::class, 'index']);

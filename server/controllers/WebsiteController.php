@@ -16,7 +16,9 @@ class WebsiteController {
 
         try {
             $db = Database::getConnection();
-            $query = "SELECT w.*, COUNT(p.id) as pages_count 
+            $query = "SELECT w.*, 
+                             COUNT(p.id) as pages_count,
+                             (SELECT id FROM pages WHERE website_id = w.id ORDER BY id ASC LIMIT 1) as primary_page_id
                       FROM websites w 
                       LEFT JOIN pages p ON w.id = p.website_id 
                       WHERE w.user_id = ? 
@@ -69,52 +71,85 @@ class WebsiteController {
             $stmt->execute([$user['id'], $name, $slug, $domain ?: null, $settingsJson]);
             $websiteId = (int)$db->lastInsertId();
 
-            // Create default Home page
-            $initialContent = json_encode([
-                'id' => 'root',
-                'type' => 'container',
-                'settings' => [
-                    'direction' => 'column',
-                    'align' => 'center',
-                    'justify' => 'center',
-                    'padding' => ['top' => '80px', 'right' => '24px', 'bottom' => '80px', 'left' => '24px'],
-                    'background' => '#ffffff',
-                    'minHeight' => '60vh'
-                ],
-                'children' => [
-                    [
-                        'id' => 'heading_' . uniqid(),
-                        'type' => 'heading',
-                        'settings' => [
-                            'text' => $name,
-                            'tag' => 'h1',
-                            'align' => 'center',
-                            'color' => '#0f172a',
-                            'fontSize' => ['desktop' => '48px', 'tablet' => '36px', 'mobile' => '28px'],
-                            'fontWeight' => '700'
-                        ],
-                        'children' => []
+            // Create default Home page with template content if provided
+            $initialContent = null;
+            $templateId = (int)($body['template_id'] ?? 0);
+            if ($templateId > 0) {
+                // Check starters
+                $tmplController = new TemplateController();
+                $starters = $tmplController->getStarterTemplates();
+                foreach ($starters as $s) {
+                    if ($s['id'] === $templateId) {
+                        $initialContent = $s['content_json'];
+                        break;
+                    }
+                }
+                if (!$initialContent) {
+                    $tmplStmt = $db->prepare("SELECT content_json FROM templates WHERE id = ?");
+                    $tmplStmt->execute([$templateId]);
+                    $tmplRow = $tmplStmt->fetch();
+                    if ($tmplRow) {
+                        $initialContent = $tmplRow['content_json'];
+                    }
+                }
+            } elseif (!empty($body['content'])) {
+                $initialContent = is_string($body['content']) ? $body['content'] : json_encode($body['content']);
+            } elseif (!empty($body['content_json'])) {
+                $initialContent = is_string($body['content_json']) ? $body['content_json'] : json_encode($body['content_json']);
+            }
+
+            if (!$initialContent) {
+                $initialContent = json_encode([
+                    'id' => 'root',
+                    'type' => 'container',
+                    'settings' => [
+                        'direction' => 'column',
+                        'align' => 'center',
+                        'justify' => 'center',
+                        'padding' => ['top' => '0px', 'right' => '0px', 'bottom' => '0px', 'left' => '0px'],
+                        'margin' => ['top' => '0px', 'right' => '0px', 'bottom' => '0px', 'left' => '0px'],
+                        'gap' => '0px',
+                        'background' => '#070a0f',
+                        'minHeight' => '100vh'
                     ],
-                    [
-                        'id' => 'text_' . uniqid(),
-                        'type' => 'text',
-                        'settings' => [
-                            'text' => '<p>Start creating your masterpiece with LightBuilder drag-and-drop editor.</p>',
-                            'align' => 'center',
-                            'color' => '#64748b',
-                            'fontSize' => ['desktop' => '18px', 'tablet' => '16px', 'mobile' => '15px']
+                    'children' => [
+                        [
+                            'id' => 'heading_' . uniqid(),
+                            'type' => 'heading',
+                            'settings' => [
+                                'text' => $name,
+                                'tag' => 'h1',
+                                'align' => 'center',
+                                'color' => '#ffffff',
+                                'fontSize' => ['desktop' => '48px', 'tablet' => '36px', 'mobile' => '28px'],
+                                'fontWeight' => '800'
+                            ],
+                            'children' => []
                         ],
-                        'children' => []
+                        [
+                            'id' => 'text_' . uniqid(),
+                            'type' => 'text',
+                            'settings' => [
+                                'text' => '<p>Start creating your masterpiece with LightBuilder drag-and-drop editor.</p>',
+                                'align' => 'center',
+                                'color' => '#94a3b8',
+                                'fontSize' => ['desktop' => '18px', 'tablet' => '16px', 'mobile' => '15px']
+                            ],
+                            'children' => []
+                        ]
                     ]
-                ]
-            ]);
+                ]);
+            }
 
             $pageStmt = $db->prepare("INSERT INTO pages (website_id, title, slug, status, content_json) VALUES (?, 'Home', 'home', 'active', ?)");
             $pageStmt->execute([$websiteId, $initialContent]);
+            $pageId = (int)$db->lastInsertId();
 
             $fetchStmt = $db->prepare("SELECT * FROM websites WHERE id = ?");
             $fetchStmt->execute([$websiteId]);
             $website = $fetchStmt->fetch();
+            $website['primary_page_id'] = $pageId;
+            $website['page_id'] = $pageId;
 
             Response::success($website, 'Website created successfully', 201);
         } catch (Exception $e) {
